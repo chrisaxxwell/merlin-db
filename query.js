@@ -1,4 +1,4 @@
-import CrypThor from "../crypthor/index.js";
+import CrypThor from "./crypthor/index.js";
 import { MerlinError, MerlinInvalidOptionError } from "./errors.js";
 import ObjectId from "./objectId.js";
 import Operators from "./operators.js";
