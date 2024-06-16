@@ -1,0 +1,21 @@
+{
+  "name": "merlin-db",
+  "version": "1.0.0",
+  "description": "Use your mongoDB and Mongoose techniques in IndexedDB with merlinDB.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chrisaxxwell/merlin-db.git"
+  },
+  "keywords": [
+    "mongoDB",
+    "merlinDB",
+    "database",
+    "indexedDB"
+  ],
+  "author": "chrisaxxwell",
+  "license": "ISC"
+}
