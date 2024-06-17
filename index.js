@@ -122,7 +122,10 @@ MerlinDB.prototype.deleteModel = function (modelName) {
          req.onupgradeneeded = function (e) {
             var db = e.target.result;
 
-            if (!isModel(db, modelName)) return reject(`'${modelName}' model not found!`)
+            if (!isModel(db, modelName)) {
+               db.close();
+               return reject(`'${modelName}' model not found!`);
+            }
             db.deleteObjectStore(modelName);
          };
          req.onsuccess = resolve.bind(null, `${modelName} was deleted!`);
@@ -177,6 +180,7 @@ MerlinDB.prototype.renameModel = function (modelName, renamed, options) {
          var result = e.target.result;
 
          if (result.objectStoreNames.contains(renamed)) {
+            result.close();
             return reject(`'${renamed} already exists!'`);
          }
 
@@ -273,6 +277,7 @@ MerlinDB.prototype.getModel = function (modelName) {
          var result = e.target.result;
 
          if (!result.objectStoreNames.contains(modelName)) {
+            result.close();
             return reject(`There's no '${modelName}' model in your Database!`);
          }
 
