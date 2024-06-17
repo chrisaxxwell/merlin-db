@@ -51,6 +51,7 @@ function models() {
       if (collecions.contains(e.modelName)) return setSchema(e.schema, null, t);
       var open = this.dbApi.open(t.dbName, t.version);
       open.onupgradeneeded = createModel.bind(null, t, e);
+
    })
 }
 
@@ -97,7 +98,10 @@ MerlinDB.prototype.connect = function (dbName) {
          var db = e.target.result;
          t.version = db.version;
          t.openResult = db;
-         models.call(t);
+         setTimeout(() => {
+
+            models.call(t);
+         }, 1);
          db.close();
          resolve({ status: 200, message: "Database connected" })
       }

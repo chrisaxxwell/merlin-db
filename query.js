@@ -221,6 +221,7 @@ Query.prototype.getQueries = function (controller, reject) {
 
          if (controller.maxTimeMS) {
             controller.maxTimeMS = setTimeout(() => {
+
                reject(`Error: operation exceeded time ${ms}ms!`);
             }, controller.maxTimeMS);
          }
@@ -797,6 +798,7 @@ Query.prototype.findOneAndDelete = function (filter, options) {
       data = data[ 0 ] || void 0;
 
       if (!data) {
+
          return resolve({ acknowledged: true, deletedCount: 0 });
       }
 
@@ -910,7 +912,7 @@ Query.prototype.findOneAndUpdate = function (filter, update, options) {
          if (options && options.new) {
             resolve(data);
 
-            return result.close();
+            return;
          }
 
          resolve(JSON.parse(res));
@@ -1415,6 +1417,7 @@ Query.prototype.getIndexes = function () {
       var indexes = [];
 
       if (db.indexNames.length === 0) {
+         result.close();
          return resolve({ indexesCount: 0 })
       }
 
@@ -1503,7 +1506,7 @@ Query.prototype.updateMany = function (filter, update, options) {
          if (options && options.new) {
             resolve(data);
 
-            return result.close();
+            return;
          }
 
          resolve(JSON.parse(res));
