@@ -165,7 +165,11 @@ Query.prototype.insertCollection = function (t, data, resolve) {
       });
 
       collection.oncomplete = function () {
-         resolve({ status: 200, message: "Data entered successfully" })
+         resolve({
+            status: 200,
+            message: "Data entered successfully",
+            data: data
+         })
       };
 
       db.close();
@@ -446,6 +450,12 @@ Query.prototype.dbOpen = function (version) {
    return new Promise((resolve) => {
       open.onsuccess = (event) => {
          var result = event.target.result;
+
+         if (!result.objectStoreNames.contains(this_.modelName)) {
+            result.close();
+            return this_.dbOpen(version);
+         }
+
          var trans = result.transaction([ this_.modelName ], 'readwrite');
          var store = trans.objectStore(this_.modelName);
          resolve([ store, result ]);

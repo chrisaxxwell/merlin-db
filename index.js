@@ -56,6 +56,7 @@ function models() {
 }
 
 MerlinDB.prototype.model = function (modelName, schema) {
+
    var t = this;
    t.models.push({ modelName, schema });
    return new Query(schema, t, modelName);
