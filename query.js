@@ -1,7 +1,9 @@
 import CrypThor from "./crypthor/index.js";
 import { MerlinError, MerlinInvalidOptionError } from "./errors.js";
+import MerlinDB from "./index.js";
 import ObjectId from "./objectId.js";
 import Operators from "./operators.js";
+import Validator from "./validator.js";
 
 
 function Query(schema, merlin, model) {
@@ -31,96 +33,6 @@ function Query(schema, merlin, model) {
    return this;
 }
 /**@private */
-Query.prototype.isType = function (type, value, key) {
-   type = type.toString();
-   type = type.toLowerCase();
-   type = type.match(/number|array|boolean|date|string|object/gi);
-   var typeof_ = typeof value;
-   if (type === null) {
-      throw new MerlinError(`define a type in your ${key} schema`)
-   };
-
-   if (type.indexOf('date') !== -1) {
-      if (
-         new Date(value) !== "Invalid Date"
-         && Number(value)
-         && value !== true
-      ) {
-         typeof_ = 'date';
-      }
-   }
-
-   if (type.indexOf('array') !== -1) {
-      if (Array.isArray(value)) {
-         typeof_ = 'array';
-      }
-   }
-
-   return {
-      is: type.indexOf(typeof_) !== -1,
-      needed: type.join(" or ")
-   };
-}
-/**@private */
-Query.prototype.hasUnique = async function (t, unique) {
-   var [ db, result ] = await t.dbOpen();
-
-   return new Promise(resolve => {
-      var index = db.index(unique[ 0 ]);
-      var get = index.get(unique[ 1 ]);
-
-      get.onsuccess = () => {
-         if (get.result) return resolve(true);
-         resolve(false);
-      }
-      result.close();
-   })
-}
-/**@private */
-Query.prototype.getType = async function (t, e, reject) {
-
-   if (!t.schema[ e[ 0 ] ]) return t.error.insert.push({
-      status: 902,
-      message: `🧙‍♂️ '${e[ 0 ]}' is not defined in your schema!`
-   })
-   var type = t.schema[ e[ 0 ] ].type;
-   type = type || t.schema[ e[ 0 ] ];
-   type = this.isType(type, e[ 1 ], e[ 0 ]);
-
-   if (t.schema[ e[ 0 ] ].unique && await t.hasUnique(t, e)) {
-      return reject({
-         status: 909,
-         message: `The email '${e[ 1 ]}' already exists.`
-      })
-   }
-
-   if (!type.is) return t.error.insert.push({
-      status: 900,
-      message: `🧙‍♂️ The type of '${e[ 0 ]}' needs to be '${type.needed}' in '${t.modelName}'.`
-   });
-}
-/**@private */
-Query.prototype.undefinedSchema = function (t, e) {
-   if (!t.schema[ e[ 0 ] ]) return t.error.insert.push({
-      status: 899,
-      message: `🧙‍♂️ There is no '${e[ 0 ]}' key in the '${t.modelName}' schema.`
-   });
-}
-/**@private */
-Query.prototype.isRequired = function (t, data) {
-   Object.entries(t.schema).forEach(e => {
-      if (!e[ 1 ].required) return;
-
-      data.forEach((f, i) => {
-         if (f[ e[ 0 ] ]) return;
-         t.error.insert.push({
-            status: 901,
-            message: `🧙‍♂️ The '${e[ 0 ]}' is required in '${t.modelName}' schema at index ${i}`
-         });
-      });
-   });
-}
-/**@private */
 Query.prototype.existsId = function (store, e, call) {
    var t = this;
    e.id_ = new ObjectId().toString();
@@ -144,36 +56,39 @@ Query.prototype.TypeError = function (current, type, oms) {
    }
 }
 /**@private */
-Query.prototype.insertCollection = function (t, data, resolve) {
-   var open = t.merlin.dbApi.open(t.merlin.dbName);
+Query.prototype.insertCollection = async function (data, resolve, options) {
+   var isOrder = options && options.ordered === false ? false : true;
+   var insertedId = [];
 
-   open.onsuccess = function (e) {
-      var db = e.target.result;
-      if (!db.objectStoreNames.contains(t.modelName)) {
-         db.close();
-         t.insertCollection(t, data, resolve);
-         return;
+   for (const item of data) {
+
+      if (isOrder) {
+         item.$order = Date.now();
       }
 
-      var collection = db.transaction([ t.modelName ], "readwrite");
-      var store = collection.objectStore(t.modelName);
+      item.id_ = new ObjectId().toString();
+      insertedId.push(item.id_);
 
-      data.forEach(e => {
-         t.existsId(store, e, (e) => {
-            e = store.add(e);
-         })
-      });
+      var [ db, result ] = await this.dbOpen();
 
-      collection.oncomplete = function () {
-         resolve({
-            status: 200,
-            message: "Data entered successfully",
-            data: data
-         })
-      };
+      db.add(item);
 
-      db.close();
+      result.close();
+   }
+
+   var res = {
+      "acknowledged": true,
    };
+
+   if (insertedId.length > 1) {
+      res.insertedIds = insertedId;
+   }
+
+   if (insertedId.length == 1) {
+      res.insertedId = insertedId[ 0 ];
+   }
+
+   resolve(res);
 }
 /**@private */
 Query.prototype.promise = function (callback) {
@@ -458,7 +373,7 @@ Query.prototype.dbOpen = function (version) {
 
          var trans = result.transaction([ this_.modelName ], 'readwrite');
          var store = trans.objectStore(this_.modelName);
-         resolve([ store, result ]);
+         resolve([ store, result, trans ]);
       }
    })
 }
@@ -600,52 +515,53 @@ Query.prototype.decrypt = function (options, data) {
       }, 500 * data.length);
    })
 };
+/**@private */
+Query.prototype.getModel = function (model) {
+   return new Promise(resolve => {
 
-//INSERT  
+      this.merlin.getModel(model).then(e => {
+
+         resolve(true);
+      }).catch(async e => {
+
+         this.merlin.createModel(model, this.schema)
+            .then(e => {
+               resolve(true)
+            })
+      });
+   })
+};
+
+//INSERT   
 /**
-   * @typedef {Object} EncryptOpt
-   * @property {("SHA-256"|"SHA-384"|"SHA-512")} hash -  
-   * @property {Number} salt -   
-   * @property {Array} fields -   
-   * @property {String} secretKey -   
-   * @property {Number} iterations -    
-   * @property {("medium"|"strict"|"high"|"strong"|"stronger"|"galaxy")} strength -  
-   * @typedef {Object} InsertOpt
-   * @property {EncryptOpt} encrypt - 
-   * @param {InsertOpt} options
-   * @returns 
+ * @typedef {Object} OptionsInsert
+ * @property {Boolean} ordered - default is true
+ * @param {OptionsInsert} options 
+ * @param {*} data 
+ * @returns 
  */
-Query.prototype.insert = function (data, options) {
+Query.prototype.insert = async function (data, options) {
    this.TypeError(data, [ 'object' ], 'insert');
 
-   var t = this;
-   t.error.insert = [];
+   this.error.insert = [];
    data = !data.length ? [ data ] : data;
 
    var promise = new Promise(async (resolve, reject) => {
-      t.isRequired(t, data);
+      var validator = await new Validator(data, this.schema, this);
 
-      data.forEach(e => {
-         Object.entries(e).forEach(async e => {
-            t.getType(t, e, reject);
-            t.undefinedSchema(t, e)
-         });
-      });
-
-      if (t.error.insert.length > 0) {
-         return reject(t.error.insert[ 0 ]);
+      if (typeof validator !== 'object') {
+         return reject(validator);
       }
 
-      if (options && options.encrypt) {
-         data = await t.encrypt(options.encrypt, data);
-      };
+      await this.getModel(this.modelName);
 
-      t.insertCollection(t, data, resolve);
+      this.insertCollection(data, resolve, options);
    });
 
-   t.then = promise.then.bind(promise);
-   t.catch = promise.catch.bind(promise);
-   return t;
+   this.then = promise.then.bind(promise);
+   this.catch = promise.catch.bind(promise);
+
+   return this;
 };
 
 Query.prototype.insertOne = function (data) {
@@ -656,6 +572,13 @@ Query.prototype.insertOne = function (data) {
    return this.insert(data);
 };
 
+/**
+ * @typedef {Object} OptionsInsert
+ * @property {Boolean} ordered - default is true
+ * @param {OptionsInsert} options 
+ * @param {*} data 
+ * @returns 
+ */
 Query.prototype.insertMany = function (data, options) {
    if (!data || !Array.isArray(data)) {
       throw new MerlinError(`'data' param needs to be an array!`)
@@ -730,7 +653,7 @@ Query.prototype.toFilter = async function (controller, resolve, reject, opt) {
       controller.result = prettyPrint(controller.result);
    }
 
-   controller.dbResult.close()
+   controller.dbResult.close();
    return controller.result;
 }
 
@@ -1077,8 +1000,22 @@ Query.prototype.formatDataSize = function (bytes, opt) {
       gb: ' GB',
    }[ opt.format ];
 
-   convert = (bytes / (1024 * convert)).toFixed(2);
-   convert = Number(convert)
+   var fix = {
+      kb: 2,
+      mb: 2,
+      gb: 6,
+   }[ opt.format ];
+
+   convert = (bytes / (1024 ** convert)).toFixed(fix);
+   convert = Number(convert);
+
+   if (opt.string) {
+
+      convert = convert.toLocaleString(opt.locale || 'en-US', {
+         minimumFractionDigits: 2,
+         maximumFractionDigits: 2
+      });
+   }
 
    return [ convert, opt.string ? abbr : null ]
 };

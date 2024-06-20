@@ -13,11 +13,9 @@ function MerlinDB() {
 
 function Schema(schema) {
    schema = schema || {};
-
    return schema;
 }
 
-//Schema && Model
 function setSchema(schema, model, t) {
    if (!model) return;
 
@@ -27,45 +25,21 @@ function setSchema(schema, model, t) {
       model.createIndex(e[ 0 ], e[ 0 ], { unique: e[ 1 ] });
    });
    model.createIndex("id_", "id_", { unique: true });
+   model.createIndex("$order", "$order", { unique: true });
 }
 
 function isModel(db, modelName) {
    return db.objectStoreNames.contains(modelName);
 }
 
-function createModel(t, d, e) {
-   var db = e.target.result;
-   if (isModel(db, d.modelName)) return db.close();
-   var model = db.createObjectStore(d.modelName, { keyPath: 'id_' });
-   setSchema(d.schema, model, t);
-   db.close();
-};
-
-function models() {
-   var t = this;
-   t.models.forEach(e => {
-      t.version++;
-      var db = t.openResult;
-      var collecions = db.objectStoreNames;
-
-      if (collecions.contains(e.modelName)) return setSchema(e.schema, null, t);
-      var open = this.dbApi.open(t.dbName, t.version);
-      open.onupgradeneeded = createModel.bind(null, t, e);
-
-   })
-}
-
 MerlinDB.prototype.model = function (modelName, schema) {
 
-   var t = this;
-   t.models.push({ modelName, schema });
-   return new Query(schema, t, modelName);
+   return new Query(schema, this, modelName);
 };
 
-/**@private */
-MerlinDB.prototype.version = function () {
+MerlinDB.prototype.version = function (dbName) {
    return new Promise(resolve => {
-      var db = this.dbApi.open(this.dbName);
+      var db = this.dbApi.open(dbName || this.dbName);
 
       db.onsuccess = e => {
          var result = e.target.result;
@@ -97,45 +71,12 @@ MerlinDB.prototype.connect = function (dbName) {
       t.open = t.dbApi.open(t.dbName);
       t.open.onsuccess = (e) => {
          var db = e.target.result;
-         t.version = db.version;
-         t.openResult = db;
-         setTimeout(() => {
-
-            models.call(t);
-         }, 1);
-         db.close();
          resolve({ status: 200, message: "Database connected" })
+         db.close();
       }
 
       t.open.onerror = (err) => {
          reject({ status: 400, message: err })
-      }
-   })
-};
-
-//Delete Model
-MerlinDB.prototype.deleteModel = function (modelName) {
-   var t = this;
-   return new Promise((resolve, reject) => {
-      t.dbApi.open(t.dbName).onsuccess = (e) => {
-         var db = e.target.result;
-         var version = db.version + 1;
-         db.close();
-
-         var req = t.dbApi.open(t.dbName, version);
-
-         req.onupgradeneeded = function (e) {
-            var db = e.target.result;
-
-            if (!isModel(db, modelName)) {
-               db.close();
-               return reject(`'${modelName}' model not found!`);
-            }
-            db.deleteObjectStore(modelName);
-         };
-         req.onsuccess = resolve.bind(null, `${modelName} was deleted!`);
-         req.onerror = reject;
-         db.close();
       }
    })
 };
@@ -155,6 +96,244 @@ MerlinDB.prototype.dropDatabase = function (dbName) {
       };
    });
 }
+
+/**
+ * @typedef {Object} DatabaseSize
+ * @property {("kB"|"MB"|"GB")} format - 
+ * @property {Boolean} string - 
+ * @param {DatabaseSize} options 
+ * @returns 
+ */
+MerlinDB.prototype.databaseSize = function (options) {
+   options = options || {};
+
+   return new Promise((resolve, reject) => {
+      var open = this.dbApi.open(this.dbName);
+      var size = 0;
+
+      open.onsuccess = (e) => {
+         var result = e.target.result;
+         var stores = Object.values(result.objectStoreNames);
+
+         if (stores.length === 0) {
+            result.close();
+            return resolve(0);
+         }
+
+         stores.forEach((key, idx) => {
+            var trans = result.transaction([ key ], 'readonly');
+            var store = trans.objectStore(key);
+
+            store.getAll().onsuccess = e => {
+
+               e.target.result.forEach(e => {
+
+                  size += JSON.stringify(e).length;
+               });
+
+               if (idx === stores.length - 1) {
+
+                  if (options.format) {
+                     size = new Query().formatDataSize(
+                        size,
+                        options,
+                     );
+                     if (!size[ 1 ]) {
+                        return resolve(size[ 0 ])
+                     }
+
+                     resolve(size[ 0 ] + size[ 1 ]);
+                     return;
+                  }
+
+                  resolve(size);
+               }
+
+               result.close();
+            };
+         });
+      }
+   });
+}
+
+/**
+ * @typedef {Object} EstimatedSize
+ * @property {("kB"|"MB"|"GB")} format - 
+ * @property {Boolean} string - 
+ * @property {("en-US"|"pt-BR")} locale - or you country locale lang
+ * @param {EstimatedSize} options 
+ * @returns 
+ */
+MerlinDB.prototype.getMemInfo = function (options) {
+   options = options || {};
+
+   var nav = window.navigator;
+
+   return new Promise((resolve, reject) => {
+      if (nav.storage && nav.storage.estimate) {
+
+         nav.storage.estimate().then(estimate => {
+            var sizes = {
+               total: estimate.quota,
+               used: estimate.usage,
+            };
+            sizes.remainder = sizes.total - sizes.used;
+
+            if (options.format) {
+
+               for (const key in sizes) {
+                  sizes[ key ] = new Query().formatDataSize(
+                     sizes[ key ],
+                     options
+                  )
+
+                  if (options.string) {
+                     sizes[ key ] = sizes[ key ][ 0 ] + sizes[ key ][ 1 ]
+
+                  } else {
+                     sizes[ key ] = sizes[ key ][ 0 ]
+
+                  }
+               }
+
+               return resolve(sizes);
+            }
+            resolve(sizes);
+         });
+
+      } else {
+         reject('There\'s no StorageManager API.');
+      }
+   });
+}
+
+/**
+ * 
+ * @param {Array} exceptions - ['dbs-to-not-drop']
+ * @returns 
+ */
+MerlinDB.prototype.dropAll = function (exceptions) {
+   exceptions = exceptions || [];
+   var count = 0;
+   var deletedCount = 0;
+   var databasesDeleted = [];
+
+   return new Promise(async (resolve, reject) => {
+
+      var databases = await this.dbApi.databases();
+
+      if (databases.length === 0) {
+         return resolve({
+            deleteDbCount: 0,
+            hasDatabase: "NO"
+         });
+      }
+
+      databases.forEach(async e => {
+         count++;
+
+         if (exceptions.indexOf(e.name) === -1) {
+            databasesDeleted.push(e.name);
+            deletedCount++;
+            this.dropDatabase(e.name);
+
+            if (databases.length === count) {
+               resolve({
+                  deleteDbCount: deletedCount,
+                  status: 200,
+                  databasesDeleted: databasesDeleted
+               })
+            }
+         }
+      });
+
+   });
+}
+
+MerlinDB.prototype.info = function (options) {
+   options = options || {};
+
+   return new Promise(async (resolve, reject) => {
+      var info = {
+         estimatedSize: await this.estimatedSize(options.sizes),
+         merlinDB: {
+            databases: await this.dbApi.databases(),
+            models: await this.getModels()
+         }
+      }
+      resolve(info);
+   });
+}
+
+//Delete Model
+MerlinDB.prototype.createModel = function (modelName, schema) {
+
+   return new Promise(async (resolve, reject) => {
+      var version = await this.version();
+      var db = this.dbApi.open(this.dbName, version + 1);
+
+      db.onupgradeneeded = e => {
+         var result = e.target.result;
+         if (result.objectStoreNames.contains(modelName)) {
+            reject(`model '${modelName}' already exists!`);
+            return result.close();
+         }
+
+         var model = result.createObjectStore(modelName, { keyPath: 'id_' });
+         setSchema(schema, model);
+
+         this.getModel(modelName).then(info => {
+            resolve({
+               status: 200,
+               message: `Model '${modelName}' created!`,
+               modelInfo: info
+            })
+         })
+         result.close();
+      }
+   });
+};
+
+//Delete Model
+MerlinDB.prototype.deleteModel = function (modelName) {
+   var t = this;
+
+   return new Promise((resolve, reject) => {
+      t.dbApi.open(t.dbName).onsuccess = (e) => {
+         var db = e.target.result;
+         var version = db.version + 1;
+
+         if (!isModel(db, modelName)) {
+            db.close();
+            reject(`'${modelName}' model not found!`);
+            return;
+         }
+
+         db.close();
+
+         var req = t.dbApi.open(t.dbName, version);
+
+         req.onupgradeneeded = function (e) {
+            db = e.target.result;
+            db.deleteObjectStore(modelName);
+         };
+
+         req.onsuccess = e => {
+            e.target.result.close();
+            t.dbApi.open(t.dbName).onsuccess = e => {
+               e.target.result.close()
+               resolve(`${modelName} was deleted!`);
+            }
+         }
+
+         req.onerror = e => {
+            reject(`'${modelName}' model not found!`)
+         };
+
+         db.close()
+      }
+   })
+};
 
 //Rename Model
 MerlinDB.prototype.renameModel = function (modelName, renamed, options) {
@@ -232,6 +411,12 @@ MerlinDB.prototype.getModels = function () {
       db.onsuccess = (e) => {
          var result = e.target.result;
          var modelName = Object.values(result.objectStoreNames);
+
+         if (modelName.length === 0) {
+            result.close();
+            resolve({ modelsCount: 0, anyModel: "NO" })
+            return
+         }
 
          modelName.forEach(model => {
 
