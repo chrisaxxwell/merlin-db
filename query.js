@@ -82,10 +82,12 @@ Query.prototype.insertCollection = async function (data, resolve, options) {
 
    if (insertedId.length > 1) {
       res.insertedIds = insertedId;
+      res.data = data;
    }
 
    if (insertedId.length == 1) {
       res.insertedId = insertedId[ 0 ];
+      res.data = data[ 0 ];
    }
 
    resolve(res);
@@ -172,7 +174,8 @@ Query.prototype.getQueries = function (controller, reject) {
 /**@private */
 Query.prototype.sortByCriteria = function (array, criteria) {
    array = array || [];
-   criteria = criteria || {};
+
+   criteria = criteria || (array[ 0 ].$order ? { $order: 1 } : {});
    criteria = Object.entries(criteria);
    var arr = array;
 
