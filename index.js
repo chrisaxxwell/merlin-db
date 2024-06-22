@@ -84,15 +84,36 @@ MerlinDB.prototype.connect = function (dbName) {
 //Drop Database
 MerlinDB.prototype.dropDatabase = function (dbName) {
    var t = this;
-   return new Promise((resolve, reject) => {
+   return new Promise(async (resolve, reject) => {
+
+      var databases = await t.dbApi.databases(dbName);
+      databases = Object.values(databases);
+
+      var isDb = new Promise(resolve => {
+
+         for (const key of databases) {
+            if (key.name === dbName) {
+               return resolve(true);
+            }
+         }
+
+         resolve(false);
+      });
+
+      if (!(await isDb)) {
+         return reject({
+            status: 400,
+            message: `There's no '${dbName}' database!`
+         });
+      }
+
       var db = t.dbApi.deleteDatabase(dbName);
 
-      db.onsuccess = () => {
-         resolve({ status: 200, message: "Database deleted successfully" });
-      };
-
-      db.onerror = (err) => {
-         reject({ status: 400, message: err });
+      db.onsuccess = (e) => {
+         resolve({
+            status: 200,
+            message: "Database deleted successfully"
+         });
       };
    });
 }
