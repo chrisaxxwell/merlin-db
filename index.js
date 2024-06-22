@@ -276,7 +276,7 @@ MerlinDB.prototype.info = function (options) {
 
    return new Promise(async (resolve, reject) => {
       var info = {
-         estimatedSize: await this.estimatedSize(options.sizes),
+         estimatedSize: await this.databaseSize(options.sizes),
          merlinDB: {
             databases: await this.dbApi.databases(),
             models: await this.getModels()
