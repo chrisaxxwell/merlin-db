@@ -391,6 +391,10 @@ MerlinDB.prototype.deleteModel = function (modelName) {
  */
 MerlinDB.prototype.renameModel = function (modelName, rename, schema) {
 
+   if (typeof schema !== 'object' || Array.isArray(schema) || !schema) {
+      throw new MerlinError(`Please define your 'actual schema' in renameModel method!`);
+   }
+
    return new Promise(async (resolve, reject) => {
 
       var model = this.model(modelName, schema);
