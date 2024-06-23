@@ -15,11 +15,8 @@ function Validator(data, schema, query) {
 
 Validator.prototype.validateSchema = async function () {
 
-   for (var item in this.data) {
-      item = this.data[ item ];
-
+   for (var item of this.data) {
       for (var key in this.schema) {
-
          var rules = this.schema[ key ];
          var field = item[ key ];
 
@@ -31,6 +28,12 @@ Validator.prototype.validateSchema = async function () {
       }
 
       delete item.$message;
+
+      var invalidKey = Object.keys(item).find(key => !(key in this.schema));
+
+      if (!!invalidKey) {
+         return `${invalidKey} is not a valid property!`
+      }
    }
 
    return this.data;
@@ -97,8 +100,7 @@ Validator.prototype.validateField = async function (field, rules, key, data) {
       }
    }
 
-   //encrypt
-
+   //encrypt 
    if (rules.encrypt) {
       var crypt = new CrypThor(rules.encrypt);
       crypt = await crypt.encrypt(field[ 0 ], field[ 1 ]);
@@ -130,9 +132,24 @@ Validator.prototype.validateField = async function (field, rules, key, data) {
    if (rules.maxLength) {
       var mLength = rules.maxLength;
       var max = mLength[ 0 ] | mLength;
+
       if (field.length > max) {
          return this.convertMsg(mLength[ 1 ], field)
             || `The value ${field} has a lot of characters; it's quite long.`;
+      }
+   }
+
+   if (rules.minList) {
+
+      if (field.length < (rules.minList[ 0 ] || rules.minList)) {
+         return rules.maxList[ 1 ] || `You need at least ${rules.minList} ${key}!`
+      }
+   }
+
+   if (rules.maxList) {
+
+      if (field.length > (rules.maxList[ 0 ] || rules.maxList)) {
+         return rules.maxList[ 1 ] || `Maximum ${rules.maxList} ${key} are allowed!`;
       }
    }
 
