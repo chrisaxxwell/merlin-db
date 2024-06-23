@@ -63,10 +63,10 @@ Query.prototype.insertCollection = async function (data, resolve, options) {
    for (const item of data) {
 
       if (isOrder) {
-         item.$order = Date.now();
+         item.$order = item.$order || Date.now();
       }
 
-      item.id_ = new ObjectId().toString();
+      item.id_ = item.id_ || new ObjectId().toString();
       insertedId.push(item.id_);
 
       var [ db, result ] = await this.dbOpen();

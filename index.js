@@ -11,6 +11,30 @@ function MerlinDB() {
    this.dbApi = window.indexedDB;
 };
 
+/** 
+ * @typedef {Object} SchemaMerlin
+ * @property {(Function|Array)} type 
+ * @property {(Boolean|Function)} required - 
+ * @property {Boolean} unique - 
+ * @property {(Array|Number)} maxLength - 
+ * @property {(Array|Number)} minLength - 
+ * @property {(Array|Number)} min - 
+ * @property {(Array|Number)} max - 
+ * @property {(Array|Boolean)} validateEmail - 
+ * @property {Object} enum - 
+ * @property {Array} enum.values - 
+ * @property {String} enum.message - 
+ * @property {Object} encrypt -  
+ * @property {("SHA-256"|"SHA-384"|"SHA-512")} encrypt.hash -  
+ * @property {Number} encrypt.salt -   
+ * @property {Number} encrypt.iterations -    
+ * @property {("medium"|"strict"|"high"|"strong"|"stronger"|"galaxy")} encrypt.strength -  
+ * @property {Object} validate - 
+ * @property {Function} validate.validator - 
+ * @property {(String|Function)} validate.message - 
+ * @typedef {Object.<string, SchemaMerlin>} SchemaMerlin_ 
+ * @param {SchemaMerlin_} schema -  
+ */
 function Schema(schema) {
    schema = schema || {};
    return schema;
@@ -296,7 +320,7 @@ MerlinDB.prototype.createModel = function (modelName, schema) {
       db.onupgradeneeded = e => {
          var result = e.target.result;
          if (result.objectStoreNames.contains(modelName)) {
-            reject(`model '${modelName}' already exists!`);
+            reject(`'${modelName}' model already exists!`);
             return result.close();
          }
 
@@ -357,68 +381,46 @@ MerlinDB.prototype.deleteModel = function (modelName) {
 };
 
 //Rename Model
-MerlinDB.prototype.renameModel = function (modelName, renamed, options) {
+/**
+ * @typedef {Object} OptionsRenameModel
+ * @property {Array} unique - 
+ * @param {String} modelName - 
+ * @param {String} rename - 
+ * @param {OptionsRenameModel} schema 
+ * @returns 
+ */
+MerlinDB.prototype.renameModel = function (modelName, rename, schema) {
 
    return new Promise(async (resolve, reject) => {
-      var version = await this.version();
-      var result = await this.dbOpen(this.dbName);
 
-      if (!result.objectStoreNames.contains(modelName)) {
-         return reject(`There's no model '${modelName}' in your database!`);
+      var model = this.model(modelName, schema);
+
+      try {
+         await this.getModel(modelName);
+      } catch (e) {
+         return reject(e);
       }
 
-      var trans = result.transaction([ modelName ], 'readwrite');
-      var store = trans.objectStore(modelName);
-      var recovery = {};
-      recovery.index = store.indexNames;
 
-      store.getAll().onsuccess = e => {
-         recovery.data = e.target.result
+      try {
+         await this.createModel(rename, schema);
+      } catch (e) {
+         return reject(e);
       }
 
-      result.close();
+      var data = await model.find();
 
-      var db = this.dbApi.open(this.dbName, version + 1);
-      var Schema = {};
+      var newModel = this.model(rename, schema);
+      newModel = await newModel.insert(data);
 
-      db.onupgradeneeded = async e => {
-         var result = e.target.result;
-
-         if (result.objectStoreNames.contains(renamed)) {
-            result.close();
-            return reject(`'${renamed} already exists!'`);
-         }
-
-         Object.values(recovery.index).forEach(e => {
-            Schema[ e ] = {};
-
-            if (options && options.unique.indexOf(e) !== -1) {
-               Schema[ e ].unique = true;
-            }
-         })
-
-         var model = result.createObjectStore(renamed, { keyPath: 'id_' });
-         setSchema(Schema, model);
-
-         result.close();
-
-         var result = await this.dbOpen(this.dbName);
-         var trans = result.transaction([ renamed ], 'readwrite');
-         var store = trans.objectStore(renamed);
-
-         recovery.data.forEach(item => {
-            store.add(item);
-         });
-         result.close();
-
-         this.deleteModel(modelName);
-         resolve({
-            oldModel: modelName,
-            newModel: renamed,
-            renamed: true,
-            status: 'Successful'
-         })
-      }
+      this.deleteModel(modelName);
+      resolve({
+         oldModel: modelName,
+         newModel: rename,
+         renamed: true,
+         data: newModel.data,
+         status: 'Successful'
+      })
    });
 }
 
@@ -435,7 +437,7 @@ MerlinDB.prototype.getModels = function () {
 
          if (modelName.length === 0) {
             result.close();
-            resolve({ modelsCount: 0, anyModel: "NO" })
+            reject({ modelsCount: 0, anyModel: "NO" })
             return
          }
 
