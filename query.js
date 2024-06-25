@@ -499,7 +499,7 @@ Query.prototype.encrypt = function (options, data) {
 /**@private */
 Query.prototype.decrypt = function (options, data) {
 
-   return new Promise(async (resolve) => {
+   return new Promise(async (resolve, reject) => {
       var crypt = new CrypThor({
          hash: options.hash || null,
          iterations: options.iterations || null,
@@ -507,11 +507,16 @@ Query.prototype.decrypt = function (options, data) {
          salt: options.salt || null,
       });
 
-      data.forEach(async item => {
-         for (const key of options.fields) {
-            item[ key ] = await crypt.decrypt(item[ key ], options.secretKey)
-         }
-      });
+      try {
+         data.forEach(async item => {
+            for (const key of options.fields) {
+               item[ key ] = await crypt.decrypt(item[ key ], options.secretKey)
+            }
+         });
+
+      } catch (err) {
+         reject(err);
+      }
 
       setTimeout(() => {
          resolve(data);
@@ -696,11 +701,17 @@ Query.prototype.balance = function (filter, options, response) {
  */
 Query.prototype.find = function (filter, options) {
    var this_ = this;
-   return this.balance(filter, options, async function (data, resolve) {
+   return this.balance(filter, options, async function (data, resolve, reject) {
       if (options && options.decrypt) {
          data = await data;
-         data = await this_.decrypt(options.decrypt, data);
-         return resolve(data)
+
+         return this_.decrypt(options.decrypt, data).then(e => {
+            resolve(e);
+
+         }).catch(e => {
+
+            reject(e);
+         })
       };
       resolve(data)
    });
