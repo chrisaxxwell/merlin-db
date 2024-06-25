@@ -49,7 +49,8 @@ Validator.prototype.validateField = async function (field, rules, key, data) {
    }
 
    if (rules.required && [ void 0, null ].includes(field)) {
-      var message = rules.required[ 1 ] || `${key} is required!`;
+      var message = this.convertMsg(rules.min[ 1 ], field)
+         || `${key} is required!`;
       return message;
    }
 
@@ -67,7 +68,7 @@ Validator.prototype.validateField = async function (field, rules, key, data) {
 
       var types = rules.type.toString();
 
-      types = types.match(/(Date|Function|String|Number|Array|Object)/g, "");
+      types = types.match(/(Date|Function|String|Boolean|Number|Array|Object)/g, "");
       types = types.join(", ").toLowerCase();
 
       var check = types.indexOf(typeof field) === -1;
@@ -165,7 +166,7 @@ Validator.prototype.validateField = async function (field, rules, key, data) {
 
    //enum
    if (rules.enum) {
-      var enum_ = rules.enum.values;
+      var enum_ = rules.enum.values || rules.enum;
       message = this.convertMsg(rules.enum.message, field);
       message = message || `Only ${enum_.join(", ")} is allowed!`;
       if (!enum_.includes(field)) {
@@ -198,11 +199,8 @@ Validator.prototype.validateField = async function (field, rules, key, data) {
 }
 
 Validator.prototype.isDate = function (value) {
-   if (
-      value < 0
-      || new Date(value) === 'Invalid Date'
+   if (new Date(value) === 'Invalid Date'
       || value === null
-      || value > 6249223105200000
       || !isFinite(value)
       || typeof value === 'boolean'
    ) {

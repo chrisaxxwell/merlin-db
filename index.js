@@ -55,7 +55,31 @@ function setSchema(schema, model, t) {
 function isModel(db, modelName) {
    return db.objectStoreNames.contains(modelName);
 }
-
+/** 
+ * @typedef {Object} SchemaMerlin
+ * @property {(Function|Array)} type 
+ * @property {(Boolean|Function)} required - 
+ * @property {Boolean} unique - 
+ * @property {(Array|Number)} maxLength - 
+ * @property {(Array|Number)} minLength - 
+ * @property {(Array|Number)} min - 
+ * @property {(Array|Number)} max - 
+ * @property {(Array|Boolean)} validateEmail - 
+ * @property {Object} enum - 
+ * @property {Array} enum.values - 
+ * @property {String} enum.message - 
+ * @property {Object} encrypt -  
+ * @property {("SHA-256"|"SHA-384"|"SHA-512")} encrypt.hash -  
+ * @property {Number} encrypt.salt -   
+ * @property {Number} encrypt.iterations -    
+ * @property {("medium"|"strict"|"high"|"strong"|"stronger"|"galaxy")} encrypt.strength -  
+ * @property {Object} validate - 
+ * @property {Function} validate.validator - 
+ * @property {(String|Function)} validate.message - 
+ * @typedef {Object.<string, SchemaMerlin>} SchemaMerlin_ 
+ * @param {SchemaMerlin_} schema -  
+ * @param {String} modelName -  
+ */
 MerlinDB.prototype.model = function (modelName, schema) {
 
    return new Query(schema, this, modelName);

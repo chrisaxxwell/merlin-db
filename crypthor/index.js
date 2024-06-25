@@ -81,23 +81,26 @@ CrypThor.prototype.encrypt = async function (string, secretKey) {
    return btoa(String.fromCharCode(...result));
 };
 
-CrypThor.prototype.decrypt = async function (ciphertext, secretKey) {
-   try {
-      var data = this.uint8.from(atob(ciphertext), c => c.charCodeAt(0));
-      var iv = data.slice(0, 16);
-      var encrypted = data.slice(16);
-      var cipherKey = await this.key(secretKey);
+CrypThor.prototype.decrypt = function (ciphertext, secretKey) {
+   return new Promise(async (resolve, reject) => {
 
-      var decrypted = await this.crypto.subtle.decrypt(
-         { name: "AES-CBC", iv },
-         cipherKey,
-         encrypted
-      );
+      try {
+         var data = this.uint8.from(atob(ciphertext), c => c.charCodeAt(0));
+         var iv = data.slice(0, 16);
+         var encrypted = data.slice(16);
+         var cipherKey = await this.key(secretKey);
 
-      return new TextDecoder().decode(decrypted);
-   } catch (error) {
-      return "Invalid 'secret key'";
-   }
+         var decrypted = await this.crypto.subtle.decrypt(
+            { name: "AES-CBC", iv },
+            cipherKey,
+            encrypted
+         );
+
+         resolve(new TextDecoder().decode(decrypted));
+      } catch (error) {
+         reject("Invalid 'secret key'");
+      }
+   })
 };
 
 /**@private */
