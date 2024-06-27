@@ -175,7 +175,7 @@ Query.prototype.getQueries = function (controller, reject) {
 Query.prototype.sortByCriteria = function (array, criteria) {
    array = array || [];
 
-   criteria = criteria || (array[ 0 ].$order ? { $order: 1 } : {});
+   criteria = criteria || (array[ 0 ] && array[ 0 ].$order ? { $order: 1 } : {});
    criteria = Object.entries(criteria);
    var arr = array;
 
@@ -242,12 +242,12 @@ Query.prototype.returnKeyController = function (controller, reject) {
    return result;
 }
 /**@private */
-Query.prototype.mapController = function (controller, resolve) {
-   controller.result.map((e) => {
-      controller.map(e)
+Query.prototype.mapController = function (controller) {
+   var map = controller.result.map((e) => {
+      return controller.map(e);
    });
 
-   resolve("Using map method!")
+   return map;
 }
 /**@private */
 Query.prototype.filterMaxValues = function (controller) {
@@ -475,6 +475,12 @@ Query.prototype.min = function (query) {
    return this;
 };
 /**@private */
+Query.prototype.lilit = function () {
+
+   this.controller[ this.index ].lilit = true;
+   return this;
+};
+/**@private */
 Query.prototype.encrypt = function (options, data) {
 
    return new Promise(async (resolve) => {
@@ -498,6 +504,8 @@ Query.prototype.encrypt = function (options, data) {
 };
 /**@private */
 Query.prototype.decrypt = function (options, data) {
+   var rejected = false;
+   var timer = null;
 
    return new Promise(async (resolve, reject) => {
       var crypt = new CrypThor({
@@ -507,18 +515,24 @@ Query.prototype.decrypt = function (options, data) {
          salt: options.salt || null,
       });
 
-      try {
-         data.forEach(async item => {
-            for (const key of options.fields) {
-               item[ key ] = await crypt.decrypt(item[ key ], options.secretKey)
-            }
-         });
+      data.forEach(item => {
+         for (const key of options.fields) {
+            crypt.decrypt(item[ key ], options.secretKey).then(e => {
+               item[ key ] = e;
+            }).catch(e => {
+               rejected = true;
+               reject({
+                  [ key ]: item[ key ],
+                  message: e,
+               });
+            })
+         }
+      });
 
-      } catch (err) {
-         reject(err);
-      }
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+         if (rejected) return clearTimeout(timer);
 
-      setTimeout(() => {
          resolve(data);
       }, 500 * data.length);
    })
@@ -619,6 +633,11 @@ Query.prototype.toFilter = async function (controller, resolve, reject, opt) {
    controller.skip = controller.skip || 0;
    controller.limit = controller.limit || 0;
 
+   //lilit
+   if (controller.lilit) {
+      query = "I am your mother and I will control you and your soul!!";
+   }
+
    //min
    if (controller.min) {
       query = this.filterMinValues(controller);
@@ -643,7 +662,7 @@ Query.prototype.toFilter = async function (controller, resolve, reject, opt) {
 
    //map
    if (controller.map) {
-      return resolve(this.mapController(controller.result));
+      return this.mapController(controller);
    }
 
    //returnKey
@@ -653,9 +672,8 @@ Query.prototype.toFilter = async function (controller, resolve, reject, opt) {
 
    //returnKey
    if (controller.size) {
-      return resolve(controller.result.length);
+      controller.result = controller.result.length;
    }
-
 
    if (controller.pretty) {
       controller.result = prettyPrint(controller.result);
@@ -668,19 +686,18 @@ Query.prototype.toFilter = async function (controller, resolve, reject, opt) {
 /** @private*/
 Query.prototype.balance = function (filter, options, response) {
    filter = filter || {};
-   var t = this;
    this.index++;
 
    this.controller[ this.index ] = {};
    this.controller[ this.index ].query = filter;
 
    var promise = new Promise((resolve, reject) => {
-      response(t.toFilter.bind(this, this.controller[ this.index ], resolve, reject, options)(), resolve);
+      response(this.toFilter.bind(this, this.controller[ this.index ], resolve, reject, options)(), resolve, reject);
    });
 
    this.then = promise.then.bind(promise);
    this.catch = promise.catch.bind(promise);
-   return t;
+   return this;
 };
 
 /**  
@@ -701,6 +718,7 @@ Query.prototype.balance = function (filter, options, response) {
  */
 Query.prototype.find = function (filter, options) {
    var this_ = this;
+
    return this.balance(filter, options, async function (data, resolve, reject) {
       if (options && options.decrypt) {
          data = await data;
@@ -720,6 +738,10 @@ Query.prototype.find = function (filter, options) {
 Query.prototype.findOne = function (filter, options) {
    var this_ = this;
 
+   if (Array.isArray(filter) || typeof filter !== 'object' || !find) {
+      throw new MerlinError("'filter' param needs to be an 'object' type");
+   }
+
    return this.balance(filter, options, async function (data, resolve) {
       data = await data;
       data = data || [];
@@ -730,6 +752,27 @@ Query.prototype.findOne = function (filter, options) {
       };
 
       resolve(data[ 0 ])
+   });
+};
+
+Query.prototype.findMany = function (filter, options) {
+   var this_ = this;
+
+   if (Array.isArray(filter) || typeof filter !== 'object' || !find) {
+      throw new MerlinError("'filter' param needs to be an 'object' type");
+   }
+
+   return this.balance(filter, options, async function (data, resolve) {
+      data = await data;
+      data = data || [];
+
+      if (options && options.decrypt) {
+         data = await data;
+         data = await this_.decrypt(options.decrypt, data);
+         return resolve(data)
+      };
+
+      resolve(data);
    });
 };
 
@@ -763,6 +806,7 @@ Query.prototype.findOneAndDelete = function (filter, options) {
 /**
  * @typedef {Object} OptionsReplace
  * @property {Boolean} upsert - 
+ * @property {("after"|"before")} returnDocument -  
  * @param {OptionsReplace} options - 
  * @returns 
  */
@@ -785,21 +829,35 @@ Query.prototype.findOneAndReplace = function (filter, replace, options) {
          return resolve({ acknowledged: true, replacedCount: 0 });
       }
 
+      var newData = {};
+      var oldData = data || void 0;
+      oldData = JSON.stringify(oldData || {
+         acknowledged: false,
+         noData: true
+      });
+
+      newData.id_ = data.id_;
+      newData.$order = data.$order || null;
+
       if (options && options.upsert && !data) {
          var id_ = new ObjectId().toString();
-         data = {};
-         data.id_ = id_;
+         newData.id_ = id_;
       }
 
-      var res = JSON.stringify(data);
       var [ db, result ] = await this_.dbOpen();
 
       for (const key in replace) {
-         data[ key ] = replace[ key ];
+         newData[ key ] = replace[ key ];
       }
 
-      db.put(data).onsuccess = () => {
-         resolve(JSON.parse(res));
+      db.put(newData).onsuccess = () => {
+         newData = newData;
+
+         if (options && options.returnDocument == "before") {
+            newData = JSON.parse(oldData);
+         }
+
+         resolve(newData);
       }
 
       result.close();
@@ -910,7 +968,7 @@ Query.prototype.creatingIndex = async function () {
       var store = trans.objectStore(this_.modelName);
 
       if (store.indexNames.contains(name)) {
-         return args[ 3 ](`Index '${name}' already exists in your database!`)
+         return args[ 3 ](`Index '${name}' already exists in your model!`)
       }
 
       store.createIndex(name, keys, {
@@ -935,7 +993,7 @@ Query.prototype.creatingIndex = async function () {
 /**  
  * @typedef {Object} CreateIndex
  * @property {Boolean} unique - unique values or not, default is false
- * @property {Boolean} name - unique values or not, default is false
+ * @property {Boolean} name - Set a name compost index
  * @property {(1|-1)} direction - Specify index sorting direction
  * @property {String} locale - Determine the language in `iso` of how strings are defined and compared when creating an index
  * @param {CreateIndex} options - Options to your index
@@ -950,8 +1008,7 @@ Query.prototype.createIndex = function (keys, options) {
 
 /**  
  * @typedef {Object} CreateIndex
- * @property {Boolean} unique - unique values or not, default is false
- * @property {Boolean} name - unique values or not, default is false
+ * @property {Boolean} unique - unique values or not, default is false 
  * @property {(1|-1)} direction - Specify index sorting direction
  * @property {String} locale - Determine the language in `iso` of how strings are defined and compared when creating an index
  * @param {CreateIndex} options - Options to your index
@@ -1109,6 +1166,7 @@ Query.prototype.deleteOne = function (filter, options) {
       data = await data;
       data = data || [];
       data = data[ 0 ] || void 0;
+      var save = JSON.stringify(data);
 
       if (!data || data.length === 0) {
          resolve({ acknowledged: true, deletedCount: 0 })
@@ -1118,7 +1176,11 @@ Query.prototype.deleteOne = function (filter, options) {
       var [ store, result ] = await this_.dbOpen();
 
       store.delete(data.id_).onsuccess = () => {
-         resolve({ acknowledged: true, deletedCount: 1 })
+         resolve({
+            acknowledged: true,
+            deletedCount: 1,
+            data: JSON.parse(save)
+         })
       }
 
       result.close();
@@ -1200,7 +1262,7 @@ Query.prototype.dropIndex = function (indexName) {
       store.deleteIndex(indexName);
 
       resolve({
-         "msg": "indexes dropped for collection",
+         "msg": `index '${indexName}' dropped for collection!`,
          "ok": 1
       });
 
@@ -1248,11 +1310,17 @@ Query.prototype.drop = function () {
 
       if (!db.objectStoreNames.contains(this.modelName)) {
          db.close()
-         return resolve(false)
+         return resolve({
+            status: 400,
+            message: `There's no ${this.modelName} model!`
+         })
       }
 
       db.deleteObjectStore(this.modelName)
-      resolve(true);
+      resolve({
+         status: 200,
+         message: `'${this.modelName}' model deleted!`
+      });
 
       db.close()
    })
@@ -1479,6 +1547,7 @@ Query.prototype.updateMany = function (filter, update, options) {
 
 /**@private */
 Query.prototype.byId = function (id) {
+
    return new Promise(async (resolve, reject) => {
       if (typeof id !== "string" && typeof id !== "number") {
          throw new MerlinError(`'id' property needs to be an (number or string);`)
@@ -1533,15 +1602,10 @@ Query.prototype.findById = async function (id, options) {
    return newData;
 };
 
-/**
- * 
- * @typedef {Object} findById
- * @property {Object} fields - 
- * @param {findById} options - 
- */
 Query.prototype.findByIdAndDelete = function (id) {
    return new Promise(async (resolve) => {
       var data = await this.byId(id);
+      var save = JSON.stringify(data);
 
       if (!Object.keys(data).length) {
          return resolve({ acknowledged: true, deletedCount: 0 });
@@ -1550,7 +1614,11 @@ Query.prototype.findByIdAndDelete = function (id) {
       var [ db, result ] = await this.dbOpen();
 
       db.delete(data.id_).onsuccess = () => {
-         resolve({ acknowledged: true, deletedCount: 1 });
+         resolve({
+            acknowledged: true,
+            deletedCount: 1,
+            data: JSON.parse(save)
+         });
       }
 
       result.close();
@@ -1573,7 +1641,7 @@ Query.prototype.findByIdAndUpdate = function (id, update, options) {
       var data = await this.byId(id);
 
       if (!Object.keys(data).length) {
-         return resolve({ acknowledged: true, deletedCount: 0 });
+         return resolve({ acknowledged: true, updatedCount: 0 });
       }
 
       var [ db, result ] = await this.dbOpen();
