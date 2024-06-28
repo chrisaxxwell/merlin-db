@@ -59,6 +59,33 @@ Query.prototype.TypeError = function (current, type, oms) {
 Query.prototype.insertCollection = async function (data, resolve, options) {
    var isOrder = options && options.ordered === false ? false : true;
    var insertedId = [];
+   var insertedItem = [];
+   var this_ = this;
+   var merlin = this_.merlin;
+
+   var open = new Promise(resolve => {
+      var _ = merlin.dbApi.open(merlin.dbName);
+      _.onsuccess = e => {
+         var result = e.target.result;
+         resolve(result);
+      }
+   });
+   open = await open;
+
+   function addItem(item) {
+      return new Promise(async (resolve) => {
+         var trans = open.transaction([ this_.modelName ], 'readwrite');
+         var store = trans.objectStore(this_.modelName);
+
+         store.add(item).onsuccess = e => {
+            setTimeout(() => {
+               insertedId.push(item.id_);
+               insertedItem.push(item);
+               resolve();
+            }, 1);
+         };
+      })
+   }
 
    for (const item of data) {
 
@@ -67,13 +94,8 @@ Query.prototype.insertCollection = async function (data, resolve, options) {
       }
 
       item.id_ = item.id_ || new ObjectId().toString();
-      insertedId.push(item.id_);
 
-      var [ db, result ] = await this.dbOpen();
-
-      db.add(item);
-
-      result.close();
+      await addItem(item);
    }
 
    var res = {
@@ -82,13 +104,14 @@ Query.prototype.insertCollection = async function (data, resolve, options) {
 
    if (insertedId.length > 1) {
       res.insertedIds = insertedId;
-      res.data = data;
+      res.data = insertedItem;
    }
 
    if (insertedId.length == 1) {
       res.insertedId = insertedId[ 0 ];
       res.data = data[ 0 ];
    }
+   open.close();
 
    resolve(res);
 }
@@ -128,6 +151,18 @@ Query.prototype.prettyPrint = function (doc) {
    return JSON.stringify(doc, null, 2);
 }
 /**@private */
+Query.prototype.checkQuery = function (controller) {
+   return new Promise(resolve => {
+      for (const key in controller.query) {
+         var query = controller.query[ key ]
+         if (typeof query !== 'object' && query) {
+
+            return resolve([ key, query ])
+         }
+      }
+   })
+}
+/**@private */
 Query.prototype.getQueries = function (controller, reject) {
    return new Promise((resolve) => {
       var this_ = this;
@@ -136,7 +171,7 @@ Query.prototype.getQueries = function (controller, reject) {
       var merlin = this.merlin;
       var open = merlin.dbApi.open(merlin.dbName);
 
-      open.onsuccess = function (event) {
+      open.onsuccess = async function (event) {
 
          var ms = controller.maxTimeMS;
 
@@ -165,6 +200,19 @@ Query.prototype.getQueries = function (controller, reject) {
          }
 
          var cursor = store.openCursor();
+
+         var [ key, value ] = await this_.checkQuery(controller);
+
+         if (key) {
+            var index = store.index(key);
+            index.getAll(value).onsuccess = e => {
+               var all = e.target.result;
+               controller.store = store;
+               controller.dbResult = result;
+               return resolve(all);
+            }
+         }
+
          cursor.onsuccess = this_.cursorFind.bind(this_, controller, resolve);
          controller.store = store;
          controller.dbResult = result;
@@ -225,7 +273,7 @@ Query.prototype.forEachController = function (controller, resolve) {
       controller.forEach(e)
    });
 
-   resolve("Using forEach method!")
+   resolve("Using forEach method!");
 }
 /**@private */
 Query.prototype.returnKeyController = function (controller, reject) {
@@ -620,7 +668,6 @@ Query.prototype.toFilter = async function (controller, resolve, reject, opt) {
    var query = await this.getQueries.bind(this, controller, reject)();
 
    if (query.length == 0) return resolve(`There's no data to recovery`);
-
    //maxTimeMS
    clearTimeout(controller.maxTimeMS);
 
@@ -700,21 +747,41 @@ Query.prototype.balance = function (filter, options, response) {
    return this;
 };
 
-/**  
+
+/** 
+ * @typedef {Object} FiltersIn
+ * @property {*} $eq -   
+ * @property {(Number|Date)} $gt -   
+ * @property {(Number|Date)} $gte -   
+ * @property {Array} $in -   
+ * @property {(Number|Date)} $lt -   
+ * @property {(Number|Date)} $lte -   
+ * @property {*} $ne -   
+ * @property {Array} $nin -   
+ * @property {Array} $and -   
+ * @property {FiltersIn} $not -    
+ * @property {Array} $or -   
+ * @property {Regex} $regex -    
+ * @property {Array} $mod -    
+ * @property {Booelan} $exists -     
+ * @typedef {Object.<string, FiltersIn>} Filters_
+ * @typedef {Object} Filter1 
+ * @property {Array} $nor - 
+ * @property {Array} $or - 
+ * @param {(Filters_|Filter1)} filter -    
  * @typedef {Object} DecryptFind 
-   * @property {("SHA-256"|"SHA-384"|"SHA-512")} hash -  
-   * @property {Number} salt -   
-   * @property {Array} fields -   
-   * @property {String} secretKey -   
-   * @property {Number} iterations -    
-   * @property {("medium"|"strict"|"high"|"strong"|"stronger"|"galaxy")} strength -  
- * @typedef {Object} Options 
- * @property {Object} $ne - Defines what you want to allow for $ne {string: 1, number: -1}
- * @property {(1|-1)} null - Allow null? -1 = no, 1 = yes
- * @property {DecryptFind} decrypt
- * @param {Options} options -
- * @param {Object} filter -
- * @returns {Query} -
+* @property {("SHA-256"|"SHA-384"|"SHA-512")} hash -  
+* @property {Number} salt -   
+* @property {Array} fields -   
+* @property {String} secretKey -   
+* @property {Number} iterations - 
+* @property {("medium"|"strict"|"high"|"strong"|"stronger"|"galaxy")} strength -  
+* @typedef {Object} Options 
+* @property {Object} $ne - Defines what you want to allow for $ne {string: 1, number: -1}
+* @property {(1|-1)} null - Allow null? -1 = no, 1 = yes
+* @property {DecryptFind} decrypt 
+* @param {Options} options - 
+* @returns {Query} -
  */
 Query.prototype.find = function (filter, options) {
    var this_ = this;

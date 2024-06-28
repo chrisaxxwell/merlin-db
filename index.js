@@ -552,7 +552,8 @@ MerlinDB.prototype.Schema = Schema;
 export default MerlinDB;
 export {
    Schema,
-   ObjectId
+   ObjectId,
+   MerlinDB
 }
 
 
