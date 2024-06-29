@@ -81,6 +81,9 @@ function isModel(db, modelName) {
  * @param {String} modelName -  
  */
 MerlinDB.prototype.model = function (modelName, schema) {
+   if (!schema) {
+      throw new MerlinError("Define an Schema");
+   }
 
    return new Query(schema, this, modelName);
 };

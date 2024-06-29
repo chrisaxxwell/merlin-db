@@ -154,12 +154,18 @@ Query.prototype.prettyPrint = function (doc) {
 Query.prototype.checkQuery = function (controller) {
    return new Promise(resolve => {
       for (const key in controller.query) {
-         var query = controller.query[ key ]
-         if (typeof query !== 'object' && query) {
+         var query = controller.query[ key ];
+         if (typeof query !== 'object'
+            && query
+            && key.indexOf('.') === -1
+            && typeof query !== 'function'
+            && !Array.isArray(query)
+         ) {
 
             return resolve([ key, query ])
          }
       }
+      resolve([ false, false ])
    })
 }
 /**@private */
@@ -204,6 +210,7 @@ Query.prototype.getQueries = function (controller, reject) {
          var [ key, value ] = await this_.checkQuery(controller);
 
          if (key) {
+
             var index = store.index(key);
             index.getAll(value).onsuccess = e => {
                var all = e.target.result;
@@ -249,12 +256,14 @@ Query.prototype.updateOne_ = function (store, data, resolve) {
 }
 /**@private */
 Query.prototype.forEachController = function (controller, resolve) {
+   var this_ = this;
+
    function save() {
       return new Promise(resolve => {
 
          this.save && delete this.save;
          this.delete && delete this.delete;
-         updateOne_(controller.store, this, resolve);
+         this_.updateOne_(controller.store, this, resolve);
       })
    }
 
@@ -263,7 +272,7 @@ Query.prototype.forEachController = function (controller, resolve) {
 
          this.save && delete this.save;
          this.delete && delete this.delete;
-         deleteOne_(controller.store, this, resolve);
+         this_.deleteOne_(controller.store, this, resolve);
       })
    };
 
@@ -667,7 +676,11 @@ Query.prototype.toFilter = async function (controller, resolve, reject, opt) {
 
    var query = await this.getQueries.bind(this, controller, reject)();
 
-   if (query.length == 0) return resolve(`There's no data to recovery`);
+   if (query.length == 0) {
+      controller.dbResult.close();
+      return resolve(`There's no data to recovery`);
+   }
+
    //maxTimeMS
    clearTimeout(controller.maxTimeMS);
 
@@ -703,12 +716,13 @@ Query.prototype.toFilter = async function (controller, resolve, reject, opt) {
 
    //forEach
    if (controller.forEach) {
-
+      controller.dbResult.close();
       return this.forEachController(controller, resolve);
    }
 
    //map
    if (controller.map) {
+      controller.dbResult.close();
       return this.mapController(controller);
    }
 
@@ -727,7 +741,8 @@ Query.prototype.toFilter = async function (controller, resolve, reject, opt) {
    }
 
    controller.dbResult.close();
-   return controller.result;
+   var toGet = JSON.stringify(controller.result);
+   return JSON.parse(toGet);
 }
 
 /** @private*/
@@ -768,6 +783,7 @@ Query.prototype.balance = function (filter, options, response) {
  * @typedef {Object} Filter1 
  * @property {Array} $nor - 
  * @property {Array} $or - 
+ * @property {Function} $where - 
  * @param {(Filters_|Filter1)} filter -    
  * @typedef {Object} DecryptFind 
 * @property {("SHA-256"|"SHA-384"|"SHA-512")} hash -  
