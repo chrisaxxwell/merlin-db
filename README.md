@@ -1,4 +1,4 @@
-![Logo](https://raw.githubusercontent.com/chrisaxxwell/merlin-db/243a87dec6f023108ca92ad295e3ad80608cb1e2/merlin-logo.svg)
+![Logo](https://github.com/chrisaxxwell/merlin-db/blob/main/merlin-logo.svg)
 
 # MerlinDB
 
