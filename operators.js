@@ -293,13 +293,27 @@ Operators.prototype.$size = function () {
    return negate;
 }
 /**@private */
+Operators.prototype.setValue = function (obj, path, value, inc) {
+   var keys = path.split('.');
+   var lastKey = keys.pop();
+   var target = keys.reduce((o, key) => o[ key ] = o[ key ] || {}, obj);
+
+   if (inc) {
+      !target[ lastKey ] && (target[ lastKey ] = 0);
+      target[ lastKey ] += value;
+      return target;
+   }
+
+   target[ lastKey ] = value;
+   return target;
+}
+/**@private */
 Operators.prototype.$set = function (update, data, upsert) {
    if (!data && upsert) {
       data = {};
    }
-
    for (const key in update) {
-      data[ key ] = update[ key ];
+      this.setValue(data, key, update[ key ]);
    };
 
    return data;
@@ -311,10 +325,9 @@ Operators.prototype.$inc = function (update, data) {
    }
 
    for (const key in update) {
-
-      !data[ key ] && (data[ key ] = 0);
-      data[ key ] += update[ key ];
+      this.setValue(data, key, update[ key ], 'inc');
    };
+
    return data;
 }
 /**@private */

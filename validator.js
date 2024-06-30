@@ -1,5 +1,4 @@
 import CrypThor from "./crypthor/index.js";
-import ObjectId from "./objectId.js";
 import regex from "./regex.js";
 
 function Validator(data, schema, query) {

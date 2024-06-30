@@ -1,10 +1,8 @@
 import CrypThor from "./crypthor/index.js";
 import { MerlinError, MerlinInvalidOptionError } from "./errors.js";
-import MerlinDB from "./index.js";
 import ObjectId from "./objectId.js";
 import Operators from "./operators.js";
 import Validator from "./validator.js";
-
 
 function Query(schema, merlin, model) {
    /**@protected */
@@ -31,7 +29,7 @@ function Query(schema, merlin, model) {
    ];
 
    return this;
-}
+};
 /**@private */
 Query.prototype.existsId = function (store, e, call) {
    var t = this;
@@ -45,7 +43,7 @@ Query.prototype.existsId = function (store, e, call) {
 
       call(e);
    }
-}
+};
 /**@private */
 Query.prototype.TypeError = function (current, type, oms) {
 
@@ -54,7 +52,7 @@ Query.prototype.TypeError = function (current, type, oms) {
          `{{'${oms}' method}} must be a '${type.join(",")}'!`
       );
    }
-}
+};
 /**@private */
 Query.prototype.insertCollection = async function (data, resolve, options) {
    var isOrder = options && options.ordered === false ? false : true;
@@ -114,11 +112,11 @@ Query.prototype.insertCollection = async function (data, resolve, options) {
    open.close();
 
    resolve(res);
-}
+};
 /**@private */
 Query.prototype.promise = function (callback) {
    return new Promise(callback);
-}
+};
 /**@private */
 Query.prototype.cursorFind = function (controller, resolve, e) {
    var cursor = e.target.result;
@@ -145,16 +143,18 @@ Query.prototype.delaySimulation = function (resolve, timer, data) {
    var delay = setTimeout(() => {
       resolve(data || []);
    }, timer || 2000);
-}
+};
 /**@private */
 Query.prototype.prettyPrint = function (doc) {
    return JSON.stringify(doc, null, 2);
-}
+};
 /**@private */
 Query.prototype.checkQuery = function (controller) {
    return new Promise(resolve => {
+
       for (const key in controller.query) {
          var query = controller.query[ key ];
+
          if (typeof query !== 'object'
             && query
             && key.indexOf('.') === -1
@@ -165,9 +165,10 @@ Query.prototype.checkQuery = function (controller) {
             return resolve([ key, query ])
          }
       }
-      resolve([ false, false ])
+
+      resolve([ false, false ]);
    })
-}
+};
 /**@private */
 Query.prototype.getQueries = function (controller, reject) {
    return new Promise((resolve) => {
@@ -175,8 +176,8 @@ Query.prototype.getQueries = function (controller, reject) {
 
       controller.result = [];
       var merlin = this.merlin;
-      var open = merlin.dbApi.open(merlin.dbName);
 
+      var open = merlin.dbApi.open(merlin.dbName);
       open.onsuccess = async function (event) {
 
          var ms = controller.maxTimeMS;
@@ -225,35 +226,42 @@ Query.prototype.getQueries = function (controller, reject) {
          controller.dbResult = result;
       }
    });
-}
+};
 /**@private */
 Query.prototype.sortByCriteria = function (array, criteria) {
    array = array || [];
+
+   if (typeof criteria == 'function') {
+      return array.sort(criteria);
+   }
 
    criteria = criteria || (array[ 0 ] && array[ 0 ].$order ? { $order: 1 } : {});
    criteria = Object.entries(criteria);
    var arr = array;
 
    return arr.sort((a, b) => {
+
       for (const [ key, order ] of criteria) {
          if (a[ key ] < b[ key ]) return -order;
          if (a[ key ] > b[ key ]) return order;
       }
       return 0;
    });
-}
+};
 /**@private */
 Query.prototype.deleteOne_ = function (store, data, resolve) {
    store.delete(data.id_).onsuccess = () => {
+
       resolve("Deleted!");
    }
-}
+};
 /**@private */
 Query.prototype.updateOne_ = function (store, data, resolve) {
    store.put(data).onsuccess = () => {
+
       resolve("Successfully.");
    }
-}
+};
 /**@private */
 Query.prototype.forEachController = function (controller, resolve) {
    var this_ = this;
@@ -277,13 +285,14 @@ Query.prototype.forEachController = function (controller, resolve) {
    };
 
    controller.result.forEach((e) => {
+
       e.save = save;
       e.delete = delete_;
       controller.forEach(e)
    });
 
    resolve("Using forEach method!");
-}
+};
 /**@private */
 Query.prototype.returnKeyController = function (controller, reject) {
    var result = [];
@@ -293,37 +302,41 @@ Query.prototype.returnKeyController = function (controller, reject) {
    }
 
    controller.result.forEach(e => {
+
       result.push({ id_: e.id_ });
    });
 
    return result;
-}
+};
 /**@private */
 Query.prototype.mapController = function (controller) {
    var map = controller.result.map((e) => {
+
       return controller.map(e);
    });
 
    return map;
-}
+};
 /**@private */
 Query.prototype.filterMaxValues = function (controller) {
    return controller.result.filter(item => {
+
       return Object.keys(controller.max).every(key => {
 
          return item[ key ] <= controller.max[ key ];
       });
    });
-}
+};
 /**@private */
 Query.prototype.filterMinValues = function (controller) {
    return controller.result.filter(item => {
+
       return Object.keys(controller.min).every(key => {
 
          return item[ key ] >= controller.min[ key ];
       });
    });
-}
+};
 /**@private */
 Query.prototype.operators = function (criteria, query, key, opt) {
    var query_ = query[ key ] || query;
@@ -350,13 +363,13 @@ Query.prototype.operators = function (criteria, query, key, opt) {
    }
 
    return new Operators()[ criteria[ 0 ] ](criteria[ 1 ], query_, opt, query, key);
-}
+};
 /**@private */
 Query.prototype.getProperty = function (item, path) {
    return path.split('.').reduce(function (prev, curr) {
       return prev ? prev[ curr ] : undefined
    }, item || self);
-}
+};
 /**@private */
 Query.prototype.criteria = async function (query, criteria, opt) {
    if (!(criteria instanceof Object) || Array.isArray(criteria)) {
@@ -369,6 +382,7 @@ Query.prototype.criteria = async function (query, criteria, opt) {
 
    var newQuery = [];
    for (var i = 0; i < query.length; i++) {
+
       var criteriaMet = true;
       for (var key in criteria) {
 
@@ -402,7 +416,7 @@ Query.prototype.criteria = async function (query, criteria, opt) {
    }
 
    return newQuery;
-}
+};
 /**@private */
 Query.prototype.version = function () {
    var merlin = this.merlin;
@@ -410,12 +424,14 @@ Query.prototype.version = function () {
    var open = merlin.dbApi.open(merlin.dbName);
 
    return new Promise((resolve) => {
+
       open.onsuccess = (e) => {
+
          resolve(e.target.result.version);
          e.target.result.close();
       }
    })
-}
+};
 /**@private */
 Query.prototype.dbOpen = function (version) {
    var merlin = this.merlin;
@@ -423,6 +439,7 @@ Query.prototype.dbOpen = function (version) {
    var this_ = this;
 
    return new Promise((resolve) => {
+
       open.onsuccess = (event) => {
          var result = event.target.result;
 
@@ -433,10 +450,11 @@ Query.prototype.dbOpen = function (version) {
 
          var trans = result.transaction([ this_.modelName ], 'readwrite');
          var store = trans.objectStore(this_.modelName);
+
          resolve([ store, result, trans ]);
       }
    })
-}
+};
 /**@private */
 Query.prototype.upgrade = function (version) {
    var merlin = this.merlin;
@@ -448,90 +466,136 @@ Query.prototype.upgrade = function (version) {
          resolve(result);
       }
    })
-}
-
-//PUBLIC 
+};
+/**
+ * Sorts documents from a collection in the MerlinDB database;
+ * @param {Object|Function} sort - Criteries (order by name ascending) `{name: 1}`, or -1, allow function like `(a,b) => {return a - b}`;
+ * @returns 
+ */
 Query.prototype.sort = function (sort) {
-   this.TypeError(sort, [ 'object' ], 'sort');
+   this.TypeError(sort, [ 'object', 'function' ], 'sort');
 
    this.controller[ this.index ].sort = sort;
    return this;
 };
-
+/**
+ * Limits the number of documents returned in a collection;
+ * @param {Number} limit - number to limit e.g. `.limit(1)`. If used with skip method, it limits the documents next after the skip;
+ * @returns 
+ */
 Query.prototype.limit = function (limit) {
    this.TypeError(limit, [ 'number' ], 'limit');
 
    this.controller[ this.index ].limit = limit;
    return this;
 };
-
+/**
+ * Skipping a number of documents in a collection;
+ * @param {Number} skip - number to skip e.g. `.skip(3)`
+ * @returns 
+ */
 Query.prototype.skip = function (skip) {
    this.TypeError(skip, [ 'number' ], 'skip');
 
    this.controller[ this.index ].skip = skip;
    return this;
 };
-
+/**
+ * Iterates over data from a document in a collection;
+ * @param {Function} response - function to iterate;
+ * @returns 
+ */
 Query.prototype.forEach = function (response) {
    this.TypeError(response, [ 'function' ], 'forEach');
 
    this.controller[ this.index ].forEach = response;
    return this;
 };
-
+/**
+ * Pretty a data 
+ * @returns readable documents from a collection;
+ */
 Query.prototype.pretty = function () {
    this.controller[ this.index ].pretty = true;
    return this;
 };
-
+/**
+ * Transforms the documents of a query;
+ * @param {Function} response - function to map;
+ * @returns 
+ */
 Query.prototype.map = function (response) {
    this.TypeError(response, [ 'function' ], 'map');
 
    this.controller[ this.index ].map = response;
    return this;
 };
-
+/**
+ * Define a maximum time for executing an operation in the query;
+ * @param {Number} milliseconds - Limit number in milliseconds
+ * @returns 
+ */
 Query.prototype.maxTimeMS = function (milliseconds) {
    this.TypeError(milliseconds, [ 'number' ], 'maxTimeMS');
 
    this.controller[ this.index ].maxTimeMS = milliseconds;
    return this;
 };
-
+/**
+ * Uses indexes to quickly query the collection;
+ * @param {Object} index - indexs in a object e.g. `.hint({name: -1})`;
+ * @returns 
+ */
 Query.prototype.hint = function (index) {
    typeof index === "object" && (index = Object.keys(index)[ 0 ]);
+
    this.TypeError(index, [ 'string', 'object' ], 'hint');
 
    this.controller[ this.index ].hint = index || "id_";
    return this;
 };
-
+/** 
+ * @returns The indexes of a collection;
+ */
 Query.prototype.returnKey = function () {
 
    this.controller[ this.index ].returnKey = true;
    return this;
 };
-
+/** 
+ * @returns The number of documents in a query in the collection;
+ */
 Query.prototype.size = function () {
 
    this.controller[ this.index ].size = true;
    return this;
 };
-
+/**
+ * Limite a maximum value for a query in the collection.
+ * @param {Object} query - query in a object e.g. `.max({age: 40})`;
+ * @returns 
+ */
 Query.prototype.max = function (query) {
    this.TypeError(query, [ 'object' ], 'max');
 
    this.controller[ this.index ].max = query;
    return this;
 };
-
+/**
+ * Limite a minimum value for a query in the collection.
+ * @param {Object} query - query in a object e.g. `.min({age: 20})`;
+ * @returns 
+ */
 Query.prototype.min = function (query) {
    this.TypeError(query, [ 'object' ], 'min');
 
    this.controller[ this.index ].min = query;
    return this;
 };
-/**@private */
+/**
+ * Please dont use this method, be careful
+ * @returns A mother
+ */
 Query.prototype.lilit = function () {
 
    this.controller[ this.index ].lilit = true;
@@ -572,6 +636,14 @@ Query.prototype.decrypt = function (options, data) {
          salt: options.salt || null,
       });
 
+      if (options && !options.fields) {
+         throw new MerlinError("Define 'fields' option")
+      }
+
+      if (options && !options.secretKey) {
+         throw new MerlinError("Define 'secretKey' option")
+      }
+
       data.forEach(item => {
          for (const key of options.fields) {
             crypt.decrypt(item[ key ], options.secretKey).then(e => {
@@ -610,14 +682,13 @@ Query.prototype.getModel = function (model) {
       });
    })
 };
-
-//INSERT   
 /**
+ * Inserts one or more documents in collection;
  * @typedef {Object} OptionsInsert
- * @property {Boolean} ordered - default is true
- * @param {OptionsInsert} options 
- * @param {*} data 
- * @returns 
+ * @property {Boolean} ordered - Define an $order (timestamp) in every document, default is true
+ * @param {OptionsInsert} options - Insert Options
+ * @param {Object|Array} data -  Data to insert,  e.g. `{name: "Chris", age: 27}` or [&lt;documents>]
+ * @returns Use `then` or `catch` to see the results;
  */
 Query.prototype.insert = async function (data, options) {
    this.TypeError(data, [ 'object' ], 'insert');
@@ -642,21 +713,30 @@ Query.prototype.insert = async function (data, options) {
 
    return this;
 };
-
-Query.prototype.insertOne = function (data) {
+/**
+ * Inserts a document in collection; 
+ * @param {OptionsInsert} options - Insert Options
+ * @param {Object} data -  Data to insert,  e.g. `{name: "Chris", age: 27}`;
+ * @returns Use `then` or `catch` to see the results;
+ */
+Query.prototype.insertOne = function (data, options) {
    if (typeof data !== 'object' || !data || Array.isArray(data)) {
       throw new MerlinError(`'data' param needs to be an object!`)
    }
    data = [ data ];
-   return this.insert(data);
+   return this.insert(data, options);
 };
-
 /**
- * @typedef {Object} OptionsInsert
- * @property {Boolean} ordered - default is true
- * @param {OptionsInsert} options 
- * @param {*} data 
- * @returns 
+ * Inserts multiple documents; 
+ * @param {OptionsInsert} options - Insert Options
+ * @param {Array} data -  Data to insert,  e.g. [
+ * 
+ * {name: "Chris"}, 
+ * 
+ * {name: "Larissa"}
+ * 
+ * ]
+ * @returns Use `then` or `catch` to see the results;
  */
 Query.prototype.insertMany = function (data, options) {
    if (!data || !Array.isArray(data)) {
@@ -669,22 +749,20 @@ Query.prototype.insertMany = function (data, options) {
 
    return this.insert(data, options);
 };
-
-//FIND
 /**@private */
 Query.prototype.toFilter = async function (controller, resolve, reject, opt) {
 
    var query = await this.getQueries.bind(this, controller, reject)();
 
    if (query.length == 0) {
-      controller.dbResult.close();
+      controller.dbResult && controller.dbResult.close();
       return resolve(`There's no data to recovery`);
    }
 
    //maxTimeMS
    clearTimeout(controller.maxTimeMS);
 
-   //curve
+   //criteria
    query = await this.criteria(query, controller.query, opt);
 
    //sort
@@ -695,7 +773,7 @@ Query.prototype.toFilter = async function (controller, resolve, reject, opt) {
 
    //lilit
    if (controller.lilit) {
-      query = "I am your mother and I will control you and your soul!!";
+      query = "I am your mother and I will control you and your soul!! haha";
    }
 
    //min
@@ -743,8 +821,7 @@ Query.prototype.toFilter = async function (controller, resolve, reject, opt) {
    controller.dbResult.close();
    var toGet = JSON.stringify(controller.result);
    return JSON.parse(toGet);
-}
-
+};
 /** @private*/
 Query.prototype.balance = function (filter, options, response) {
    filter = filter || {};
@@ -761,43 +838,45 @@ Query.prototype.balance = function (filter, options, response) {
    this.catch = promise.catch.bind(promise);
    return this;
 };
-
-
 /** 
+ * Finds one or more documents;
  * @typedef {Object} FiltersIn
- * @property {*} $eq -   
- * @property {(Number|Date)} $gt -   
- * @property {(Number|Date)} $gte -   
- * @property {Array} $in -   
- * @property {(Number|Date)} $lt -   
- * @property {(Number|Date)} $lte -   
- * @property {*} $ne -   
- * @property {Array} $nin -   
- * @property {Array} $and -   
- * @property {FiltersIn} $not -    
- * @property {Array} $or -   
- * @property {Regex} $regex -    
- * @property {Array} $mod -    
- * @property {Booelan} $exists -     
+ * @property {*} $eq -  Compares values ​​in a query in the collection
+ * @property {(Number|Date)} $gt - Finds documents where the value of a field is greater than the specified value;
+ * @property {(Number|Date)} $gte - Finds documents where the value of a field is greater than or equal to the specified value;
+ * @property {Array} $in - Checks whether the value of a field is present in the query;
+ * @property {Array} $all - Selects documents where an array field contains all the specified elements;
+ * @property {Number} $size - Selects documents where the array field has a specific number of elements; 
+ * @property {(Number|Date)} $lt - Finds documents where the value of a field is less than the specified value;
+ * @property {(Number|Date)} $lte - Finds documents where the value of a field is less than or equal to the specified value;
+ * @property {*} $ne - Finds documents where the value of a field is not equal to the specified value;
+ * @property {Array} $nin - Finds documents where the value of a field is not in a specified set of values;
+ * @property {Array|String|Number} $type - Selects documents where the value of a field is of a specific BSON type;
+ * @property {Array} $and - Combines multiple conditions into a single logical query;
+ * @property {FiltersIn} $not - Performs logical negation in a query expression; 
+ * @property {Regex} $regex - Finds documents that match the regular expression (RegExp);
+ * @property {Array} $mod - Checks whether the value of a field divided by a divisor has a specific remainder;
+ * @property {Booelan} $exists - Checks whether a field exists or not in a document;
  * @typedef {Object.<string, FiltersIn>} Filters_
  * @typedef {Object} Filter1 
- * @property {Array} $nor - 
- * @property {Array} $or - 
- * @property {Function} $where - 
- * @param {(Filters_|Filter1)} filter -    
+ * @property {Array} $nor - Finds documents that do not match all specified conditions;
+ * @property {Array} $or - Finds documents that match at least one of the conditions;
+ * @property {Object} $text - Performs textual searches in specific text fields;
+ * @property {Function} $where - Executes JavaScript code to select documents;
+ * @param {(Filters_|Filter1)} filter - Filter to find, e.g. find where name  = Chris `.find({name: "Chris"})`
  * @typedef {Object} DecryptFind 
-* @property {("SHA-256"|"SHA-384"|"SHA-512")} hash -  
-* @property {Number} salt -   
-* @property {Array} fields -   
-* @property {String} secretKey -   
-* @property {Number} iterations - 
-* @property {("medium"|"strict"|"high"|"strong"|"stronger"|"galaxy")} strength -  
-* @typedef {Object} Options 
-* @property {Object} $ne - Defines what you want to allow for $ne {string: 1, number: -1}
-* @property {(1|-1)} null - Allow null? -1 = no, 1 = yes
-* @property {DecryptFind} decrypt 
-* @param {Options} options - 
-* @returns {Query} -
+ * @property {("SHA-256"|"SHA-384"|"SHA-512")} hash - It is mandatory if used in encryption, see more in Schema Encrypt;
+ * @property {Number} salt - It is mandatory if used in encryption, see more in Schema Encrypt;
+ * @property {Array} fields - It is an array with the fields you want to decrypt;
+ * @property {String} secretKey - This is the secret key used in encryption, this key must be the same;
+ * @property {Number} iterations - It is mandatory if used in encryption;
+ * @property {("medium"|"strict"|"high"|"strong"|"stronger"|"galaxy")} strength - It is mandatory if used in encryption, see more in Schema Encrypt;
+ * @typedef {Object} OptionsFind
+ * @property {Object} $ne - Defines what you want to allow for $ne {string: 1, number: -1}
+ * @property {(1|-1)} null - Allow null? -1 = no, 1 = yes;
+ * @property {DecryptFind} decrypt - Decrypt an encrypted data;
+ * @param {OptionsFind} options - Find method Options;
+ * @returns Use `then` or `catch` to see the results;
  */
 Query.prototype.find = function (filter, options) {
    var this_ = this;
@@ -817,7 +896,12 @@ Query.prototype.find = function (filter, options) {
       resolve(data)
    });
 };
-
+/** 
+ * Finds one document;
+ * @param {(Filters_|Filter1)} filter -  Filter to findOne, e.g. find one document where name  = Chris `.findOne({name: "Chris"})`
+ * @param {OptionsFind} options - FindOne method Options;
+ * @returns Use `then` or `catch` to see the results;
+ */
 Query.prototype.findOne = function (filter, options) {
    var this_ = this;
 
@@ -825,19 +909,29 @@ Query.prototype.findOne = function (filter, options) {
       throw new MerlinError("'filter' param needs to be an 'object' type");
    }
 
-   return this.balance(filter, options, async function (data, resolve) {
+   return this.balance(filter, options, async function (data, resolve, reject) {
       data = await data;
       data = data || [];
       if (options && options.decrypt) {
          data = await data;
-         data = await this_.decrypt(options.decrypt, data);
-         return resolve(data)
+
+         return this_.decrypt(options.decrypt, data).then(e => {
+            resolve(e[ 0 ]);
+         }).catch(e => {
+
+            reject(e);
+         });
       };
 
       resolve(data[ 0 ])
    });
 };
-
+/**
+ * Finds multiple documents;
+ * @param {(Filters_|Filter1)} filter -  Filter to findMany, e.g. find many documents where name  = Chris `.findMany({name: "Chris"})`
+ * @param {OptionsFind} options - FindMany method Options;
+ * @returns Use `then` or `catch` to see the results;
+ */
 Query.prototype.findMany = function (filter, options) {
    var this_ = this;
 
@@ -858,7 +952,12 @@ Query.prototype.findMany = function (filter, options) {
       resolve(data);
    });
 };
-
+/**
+ * Finds and removes one document at the same time;
+ * @param {(Filters_|Filter1)} filter -  Filter to findOneAndDelete, e.g. find one document and delete where name  = Chris `.findOneAndDelete({name: "Chris"})`
+ * @param {OptionsFind} options - FindOneAndDelete method Options;
+ * @returns Use `then` or `catch` to see the results;
+ */
 Query.prototype.findOneAndDelete = function (filter, options) {
    var this_ = this;
 
@@ -885,13 +984,15 @@ Query.prototype.findOneAndDelete = function (filter, options) {
       result.close();
    });
 };
-
 /**
+ * Finds and replaces a document at the same time;
  * @typedef {Object} OptionsReplace
- * @property {Boolean} upsert - 
- * @property {("after"|"before")} returnDocument -  
- * @param {OptionsReplace} options - 
- * @returns 
+ * @property {Boolean} upsert - If true inserts a document if it does not exist;
+ * @property {("after"|"before")} returnDocument - Before returns the 'old' document, after returns the 'new' document;
+ * @param {Object} options - Options to findOneAndReplace, e.g. `{upsert: true}`
+ * @param {OptionsReplace} replace - Values to replace, e.g. `{name: "Chris Axxwell"}`
+ * @param {(Filters_|Filter1)} filter -  Filter to findOneAndReplace, e.g. find one document and replace all where name  = Chris `.findMany({name: "Chris"})`
+ * @returns Use `then` or `catch` to see the results;
  */
 Query.prototype.findOneAndReplace = function (filter, replace, options) {
    var this_ = this;
@@ -946,18 +1047,18 @@ Query.prototype.findOneAndReplace = function (filter, replace, options) {
       result.close();
    });
 };
-
 /**
+ * Finds and updates a document at the same time;
  * @typedef {Object} UpdateFOAU
- * @property {Object} $inc -
- * @property {Object} $set -
+ * @property {Object} $inc - Increments(or decrements) the value of a numeric field in a document; 
+ * @property {Object} $set - Updates values ​​of a field in a document;
  * @typedef {Object} optionsFOAU
- * @property {Boolean} upsert -
- * @property {Boolean} new -
- * @param {Object} filter - 
- * @param {UpdateFOAU} update -
- * @param {optionsFOAU} options - 
- * @returns 
+ * @property {Boolean} upsert - Create a new document if it does not exist;
+ * @property {Boolean} new - if `true` returns the updated document;
+ * @param {(Filters_|Filter1)} filter -  Filter to findOneAndUpdate, e.g. find one document and update where name  = Chris `.findOneAndUpdate({name: "Chris"}, {name: "Chris Axxwell"})`
+ * @param {UpdateFOAU} update - Update settings
+ * @param {optionsFOAU} options -  findOneAndUpdate options
+ * @returns Use `then` or `catch` to see the results;
  */
 Query.prototype.findOneAndUpdate = function (filter, update, options) {
    var this_ = this;
@@ -993,6 +1094,7 @@ Query.prototype.findOneAndUpdate = function (filter, update, options) {
          if (!Operators.prototype[ key ]) {
             throw new MerlinError(`There is no '$${key}' in update method, try ($set, $inc)!`)
          }
+
          new Operators()[ key ](update[ key ], data);
       }
 
@@ -1009,18 +1111,15 @@ Query.prototype.findOneAndUpdate = function (filter, update, options) {
       result.close();
    });
 };
-
 /**@private */
 Query.prototype.unavailable = function (type) {
    return new Promise((resolve, reject) => {
       reject(`🧙‍♂️ Sorry, the '${type}' method will be available in the next versions!`)
    });
 };
-
 Query.prototype.aggregate = function () {
    return this.unavailable("aggregate");
 };
-
 Query.prototype.bulkWrite = function (operations) {
    return this.unavailable("bulkWrite");
 };
@@ -1072,15 +1171,16 @@ Query.prototype.creatingIndex = async function () {
       e.target.result.close();
    }
 };
-
 /**  
+ * Creates indices in a collection;
  * @typedef {Object} CreateIndex
- * @property {Boolean} unique - unique values or not, default is false
- * @property {Boolean} name - Set a name compost index
- * @property {(1|-1)} direction - Specify index sorting direction
- * @property {String} locale - Determine the language in `iso` of how strings are defined and compared when creating an index
- * @param {CreateIndex} options - Options to your index
- * @param {Object} keys - Key index name
+ * @property {Boolean} unique - unique values or not, default is false;
+ * @property {Boolean} name - Set a name compost index;
+ * @property {(1|-1)} direction - Specify index sorting direction;
+ * @property {String} locale - Determine the language in `iso` of how strings are defined and compared when creating an index;
+ * @param {CreateIndex} options - Options to your index;
+ * @param {Array|String} keys - Key index name;
+ * @returns Use `then` or `catch` to see the results;
  */
 Query.prototype.createIndex = function (keys, options) {
 
@@ -1088,14 +1188,15 @@ Query.prototype.createIndex = function (keys, options) {
       this.creatingIndex.bind(this, keys, options)
    );
 };
-
 /**  
+ * Creates multiple indices in a collection;
  * @typedef {Object} CreateIndex
- * @property {Boolean} unique - unique values or not, default is false 
- * @property {(1|-1)} direction - Specify index sorting direction
- * @property {String} locale - Determine the language in `iso` of how strings are defined and compared when creating an index
- * @param {CreateIndex} options - Options to your index
- * @param {Object} keyPatterns - Define your patterns
+ * @property {Boolean} unique - unique values or not, default is false; 
+ * @property {(1|-1)} direction - Specify index sorting direction;
+ * @property {String} locale - Determine the language in `iso` of how strings are defined and compared when creating an index;
+ * @param {CreateIndex} options - Options to your index;
+ * @param {Array} keyPatterns - Define your patterns;
+ * @returns Use `then` or `catch` to see the results;
  */
 Query.prototype.createIndexes = function (keyPatterns, options) {
    if (!Array.isArray(keyPatterns)) {
@@ -1110,7 +1211,10 @@ Query.prototype.createIndexes = function (keyPatterns, options) {
       });
    });
 };
-
+/**  
+ * Executes JavaScript expressions arbitrarily during query evaluation;
+ * @returns Use `then` or `catch` to see the results;
+ */
 Query.prototype.$where = async function () {
    if (arguments.length <= 1) {
       this.index++;
@@ -1137,7 +1241,6 @@ Query.prototype.$where = async function () {
 
    return new Operators().$where(arguments);
 };
-
 /** @private*/
 Query.prototype.formatDataSize = function (bytes, opt) {
    opt.format = opt.format.toLowerCase();
@@ -1173,12 +1276,13 @@ Query.prototype.formatDataSize = function (bytes, opt) {
 
    return [ convert, opt.string ? abbr : null ]
 };
-
 /**
+ * Get  the total size of data in a collection in MerlinDB;
  * @typedef {Object} FormatOptions
- * @property {("kB"|"MB"|"GB")} format - 
- * @property {Boolean} string - Show format with type in string.
- * @param {FormatOptions} options -   
+ * @property {("kB"|"MB"|"GB")} format - Formats the values ​​that are in bytes to `kilobyte` or `megabyte` or `gigabyte`.
+ * @property {Boolean} string -  Returns the value in a string;
+ * @param {FormatOptions} options -  DataSize options
+ * @returns `promise` with total size of a collection in the database.
  */
 Query.prototype.dataSize = function (options) {
    var this_ = this;
@@ -1210,7 +1314,10 @@ Query.prototype.dataSize = function (options) {
       }
    });
 };
-
+/**
+ * Estimates the number of documents in a collection; 
+ * @returns `promise` with estimate the number of documents in a collection.
+ */
 Query.prototype.estimatedDocumentCount = function () {
    return new Promise(async (resolve, reject) => {
       var [ db, result ] = await this.dbOpen();
@@ -1222,7 +1329,11 @@ Query.prototype.estimatedDocumentCount = function () {
       result.close();
    })
 };
-
+/**
+ * Counts the exact number of documents in a collection; 
+ * @param {FormatOptions} options -  DataSize options
+ * @returns `promise` with the count the exact number of documents that match the specified criteria in a collection.
+ */
 Query.prototype.countDocuments = function (filter, options) {
    if (!(filter instanceof Object)) {
       throw new MerlinError(`Invalid 'filter' type, define an object`)
@@ -1234,10 +1345,10 @@ Query.prototype.countDocuments = function (filter, options) {
       resolve(data.length);
    });
 };
-
-//DELETE  
-/**   
- * @param {Object} filter  
+/** 
+ * Finds a document and removes it from the collection;
+ * @param {(Filters_|Filter1)} filter - Filter to deleteOne, e.g. delete one where name  = Chris `.deleteOne({name: "Chris"})`
+ * @returns Use `then` or `catch` to see the results;
  */
 Query.prototype.deleteOne = function (filter, options) {
    if (!(filter instanceof Object)) {
@@ -1269,9 +1380,10 @@ Query.prototype.deleteOne = function (filter, options) {
       result.close();
    });
 };
-
-/**   
- * @param {Object} filter  
+/** 
+ * Finds multiple documents and removes them from the collection;
+ * @param {(Filters_|Filter1)} filter - Filter to deleteMany, e.g. delete all where name  = Chris `.deleteMany({name: "Chris"})`;
+ * @returns Use `then` or `catch` to see the results;
  */
 Query.prototype.deleteMany = function (filter, options) {
    if (!(filter instanceof Object)) {
@@ -1302,9 +1414,10 @@ Query.prototype.deleteMany = function (filter, options) {
       result.close();
    });
 };
-
-/**   
- * @param {Object} filter  
+/** 
+ * Returns the distinct values ​​of a specific field in a collection in MerlinDB;
+ * @param {(Filters_|Filter1)} filter - Filter to distinct, e.g. find distinct ages `.distinct("age")` return [13, 44, 46, 77 ...];
+ * @returns Use `then` or `catch` to see the results;
  */
 Query.prototype.distinct = function (filter, options) {
 
@@ -1329,7 +1442,11 @@ Query.prototype.distinct = function (filter, options) {
       resolve(distinct);
    });
 };
-
+/** 
+ * Delete an index from a collection;
+ * @param {String} indexName - index name to drop;
+ * @returns Use `then` or `catch` to see the results;
+ */
 Query.prototype.dropIndex = function (indexName) {
 
    return new Promise(async (resolve, reject) => {
@@ -1352,7 +1469,11 @@ Query.prototype.dropIndex = function (indexName) {
       db.result.close()
    })
 };
-
+/** 
+ * Delete multiple indices from a collection;
+ * @param {Array} indexesName - array with indexes names to drop;
+ * @returns Use `then` or `catch` to see the results;
+ */
 Query.prototype.dropIndexes = function (indexesName) {
    var this_ = this;
 
@@ -1383,7 +1504,10 @@ Query.prototype.dropIndexes = function (indexesName) {
       db.result.close()
    })
 };
-
+/** 
+ * Delete an entire collection. 
+ * @returns Use `then` or `catch` to see the results;
+ */
 Query.prototype.drop = function () {
 
    return new Promise(async (resolve, reject) => {
@@ -1408,7 +1532,6 @@ Query.prototype.drop = function () {
       db.close()
    })
 };
-
 /**@private */
 Query.prototype.modifyFields = function (option, data) {
    var newData = {};
@@ -1433,24 +1556,19 @@ Query.prototype.modifyFields = function (option, data) {
 
    return newData;
 };
-
-//UPDATE
 /**
- * @typedef {Object} UpdateFAM
- * @property {Object} $set -
- * @property {Object} $inc -
- */
-/**
+ * Finds and modifies a document at the same time;
  * @typedef {Object} FindAndModify
- * @property {Object} query - 
+ * @property {Object} query - (Required): Filters what you are looking for;
+ * @property {Object} options - The query options;
  * @property {Object} sort - 
- * @property {Boolean} remove -  
- * @property {UpdateFAM} update - 
- * @property {Boolean} new -
- * @property {Object} fields - 
- * @property {Boolean} upsert - 
- * @param {FindAndModify} options
- * @returns 
+ * @property {Boolean} remove - (Required or update): If set to true removes the document;
+ * @property {UpdateFOAU} update - (Required or remove): Defines the changes to be applied;
+ * @property {Boolean} new - If set to true, returns the updated document instead of the original.
+ * @property {Object} fields - The fields you want to return.
+ * @property {Boolean} upsert - If set to true allows inserting a new document if no document corresponding to the search criteria is found;
+ * @param {FindAndModify} options - Object with yours options properties
+ * @returns Use `then` or `catch` to see the results;
  */
 Query.prototype.findAndModify = function (options) {
    if (!(options instanceof Object)) {
@@ -1522,7 +1640,10 @@ Query.prototype.findAndModify = function (options) {
       result.close();
    });
 };
-
+/**
+ * Gets all indexes of a collection; 
+ * @returns Use `then` or `catch` to see the results;
+ */
 Query.prototype.getIndexes = function () {
    return new Promise(async (resolve, reject) => {
       var [ db, result ] = await this.dbOpen();
@@ -1545,35 +1666,23 @@ Query.prototype.getIndexes = function () {
       result.close();
    })
 };
-
 /**
- * @typedef {Object} UpdateFOAU
- * @property {Object} $inc -
- * @property {Object} $set -
- * @typedef {Object} optionsFOAU
- * @property {Boolean} upsert -
- * @property {Boolean} new -
- * @param {Object} filter - 
- * @param {UpdateFOAU} update -
- * @param {optionsFOAU} options - 
- * @returns 
- */
+* Finds a document and updates it in the collection; 
+* @param {(Filters_|Filter1)} filter -  Filter to updateOne, e.g. update one where name  = Chris `.updateOne({name: "Chris"}, {name: "Chris Axxwell"})`
+* @param {UpdateFOAU} update - Update settings
+* @param {optionsFOAU} options -  updateOne options
+* @returns Use `then` or `catch` to see the results;
+*/
 Query.prototype.updateOne = function (filter, update, options) {
    return this.findOneAndUpdate(filter, update, options);
 };
-
 /**
- * @typedef {Object} UpdateFOAU
- * @property {Object} $inc -
- * @property {Object} $set -
- * @typedef {Object} optionsFOAU
- * @property {Boolean} upsert -
- * @property {Boolean} new -
- * @param {Object} filter - 
- * @param {UpdateFOAU} update -
- * @param {optionsFOAU} options - 
- * @returns 
- */
+* Finds multiple documents and updates them in the collection;
+* @param {(Filters_|Filter1)} filter -  Filter to updateMany, e.g. update all where name  = Chris `.updateMany({name: "Chris"}, {name: "Chris Axxwell"})`
+* @param {UpdateFOAU} update - Update settings
+* @param {optionsFOAU} options -  updateMany options
+* @returns Use `then` or `catch` to see the results;
+*/
 Query.prototype.updateMany = function (filter, update, options) {
    var this_ = this;
 
@@ -1627,7 +1736,6 @@ Query.prototype.updateMany = function (filter, update, options) {
       result.close();
    });
 };
-
 /**@private */
 Query.prototype.byId = function (id) {
 
@@ -1652,12 +1760,13 @@ Query.prototype.byId = function (id) {
       result.close();
    })
 };
-
 /**
- * 
+ * Finds a document by id in the collection;
  * @typedef {Object} findById
- * @property {Object} fields - 
- * @param {findById} options - 
+ * @property {Object} fields - fields to return
+ * @param {findById} options -  Options to findById
+ * @param {String} id - Id to find
+ * @returns Use `then` or `catch` to see the results;
  */
 Query.prototype.findById = async function (id, options) {
    var result = await this.byId(id);
@@ -1684,7 +1793,11 @@ Query.prototype.findById = async function (id, options) {
 
    return newData;
 };
-
+/**
+ * Finds a document by id and removes it from the collection;
+ * @param {String} id - Id to find
+ * @returns Use `then` or `catch` to see the results;
+ */
 Query.prototype.findByIdAndDelete = function (id) {
    return new Promise(async (resolve) => {
       var data = await this.byId(id);
@@ -1707,17 +1820,12 @@ Query.prototype.findByIdAndDelete = function (id) {
       result.close();
    })
 };
-
 /**
- *  @typedef {Object} findByIdAndUpdate
- * @property {Object} $set - 
- * @property {Object} $inc - 
- * @param {findByIdAndUpdate} update  
- *  @typedef {Object} findByIdAndUpdateOpt 
- * @property {Boolean} new - 
- * @param {findByIdAndUpdate} update  
- * @param {findByIdAndUpdateOpt} options  
- * @returns 
+ * Finds a document by id and updates it in the collection;
+ * @param {String} id - Id to find 
+ * @param {UpdateFOAU} update - Update settings
+ * @param {optionsFOAU} options -  findByIdAndUpdate options
+ * @returns Use `then` or `catch` to see the results;
  */
 Query.prototype.findByIdAndUpdate = function (id, update, options) {
    return new Promise(async (resolve) => {
@@ -1745,5 +1853,4 @@ Query.prototype.findByIdAndUpdate = function (id, update, options) {
       result.close();
    })
 };
-
 export { ObjectId, Query as default }; 

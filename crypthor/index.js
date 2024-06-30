@@ -1,13 +1,12 @@
 
 /**
  * @author Chris Axxwell <@chrisaxxwell> 
- * @typedef {Object} Options 
- * @property {("SHA-256"|"SHA-384"|"SHA-512")} hash - aa 
- * @property {Number} salt - aa  
- * @property {Number} iterations - aa   
- * @property {("medium"|"strict"|"high"|"strong"|"stronger"|"galaxy")} strength -  aa
- * @param {Options} options - aa
- * @returns {Options} - aa  
+ * @typedef {Object} OptionsCrypthor 
+ * @property {("SHA-256"|"SHA-384"|"SHA-512")} hash - It is mandatory if used in encryption, see more in Schema Encrypt;
+ * @property {Number} salt - It is mandatory if used in encryption, see more in Schema Encrypt;
+ * @property {Number} iterations - It is mandatory if used in encryption, see more in Schema Encrypt;   
+ * @property {("medium"|"strict"|"high"|"strong"|"stronger"|"galaxy")} strength - It is mandatory if used in encryption, see more in Schema Encrypt;
+ * @param {OptionsCrypthor} options - CrypThor options 
  * @since 1.0.0
  */
 function CrypThor(options) {

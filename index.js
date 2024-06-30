@@ -1,6 +1,23 @@
 import { MerlinError } from "./errors.js";
 import Query, { ObjectId } from "./query.js";
-
+/**
+ * Welcome to MerlinDB, it's a pleasure to have you here;
+ * 
+ * Access https://merlindb.chrisaxxwell.com see the `documentation`;
+ * 
+ * Basic tutorial in 4 steps:
+ * 
+ * 1: const db = new MerlinDB();
+ * 
+ * 2: db.connect(&lt;your-db-name>);
+ * 
+ * 3: const model = db.model(&lt;modelName>, &lt;schema>); 
+ * 
+ * 4: model.insert(&lt;data>) | model.find(&lt;query>) | ... returns an promise;
+ * 
+ * @constructor
+ * @returns MerlinDB constructor
+ */
 function MerlinDB() {
    if (!(this instanceof MerlinDB)) {
       return new MerlinDB();
@@ -12,35 +29,39 @@ function MerlinDB() {
 };
 
 /** 
- * @typedef {Object} SchemaMerlin
- * @property {(Function|Array)} type 
- * @property {(Boolean|Function)} required - 
- * @property {Boolean} unique - 
- * @property {(Array|Number)} maxLength - 
- * @property {(Array|Number)} minLength - 
- * @property {(Array|Number)} min - 
- * @property {(Array|Number)} max - 
- * @property {(Array|Boolean)} validateEmail - 
- * @property {Object} enum - 
- * @property {Array} enum.values - 
- * @property {String} enum.message - 
- * @property {Object} encrypt -  
- * @property {("SHA-256"|"SHA-384"|"SHA-512")} encrypt.hash -  
- * @property {Number} encrypt.salt -   
- * @property {Number} encrypt.iterations -    
- * @property {("medium"|"strict"|"high"|"strong"|"stronger"|"galaxy")} encrypt.strength -  
- * @property {Object} validate - 
- * @property {Function} validate.validator - 
- * @property {(String|Function)} validate.message - 
- * @typedef {Object.<string, SchemaMerlin>} SchemaMerlin_ 
- * @param {SchemaMerlin_} schema -  
+ * Creates a new Schema for the model;
+ * @typedef {Object} Schema
+ * @property {(Function|Array)} type - Allowed data types (String|Number|Array|Object|Date|Boolean|Function);
+ * @property {(Boolean|Function)} required - Ensures that a field is mandatory;
+ * @property {Boolean} unique -  Ensures that the value of a field is unique;
+ * @property {(Array|Number)} maxLength - Defines the maximum number of characters for a field;
+ * @property {(Array|Number)} minLength - Defines the minimum number of characters for a field;
+ * @property {(Array|Number)} min - Define a minimum value allowed for a numeric field;
+ * @property {(Array|Number)} max - Define a maximum value allowed for a numeric field;
+ * @property {(Array|Number)} maxList - Define a maximum value of indices in an array;
+ * @property {(Array|Number)} minList - Define a minimum value of indices in an array;
+ * @property {(Array|Boolean)} validateEmail - Validate a field of type email;
+ * @property {Object} enum - Define a restricted set of possible values ​​for a field;
+ * @property {Array} enum.values - Allowed values;
+ * @property {String} enum.message - define any message or ignore;
+ * @property {Object} encrypt -  Encrypts values ​​of a field with AES in MerlinDB;
+ * @property {("SHA-256"|"SHA-384"|"SHA-512")} encrypt.hash - It is a function that transforms an input (or "message") into a fixed output;
+ * @property {Number} encrypt.salt -  Is a random value added to the input of a hash function to ensure that the output (the hash) is unique, even if the original input (e.g. a password) is the same;
+ * @property {Number} encrypt.iterations - Refers to the number of times a hash function is applied in a key derivation process (e.g. PBKDF2);
+ * @property {("medium"|"strict"|"high"|"strong"|"stronger"|"galaxy")} encrypt.strength - Defines the strength of encryption;
+ * @property {Object} validate - Validate documents with specific rules in MerlinDB.
+ * @property {Function} validate.validator - The function that performs the validation;
+ * @property {(String|Function)} validate.message - Error message to validate;
+ * @typedef {Object.<string, Schema>} SchemaMerlin 
+ * @param {SchemaMerlin} schema - Define the structure of documents within a collection;
+ * @returns Structure Schema
  */
 function Schema(schema) {
    schema = schema || {};
    return schema;
-}
+};
 
-function setSchema(schema, model, t) {
+function setSchema(schema, model) {
    if (!model) return;
 
    Object.entries(schema).forEach(e => {
@@ -48,37 +69,19 @@ function setSchema(schema, model, t) {
       if (e[ 0 ] == "id_") return;
       model.createIndex(e[ 0 ], e[ 0 ], { unique: e[ 1 ] });
    });
+
    model.createIndex("id_", "id_", { unique: true });
    model.createIndex("$order", "$order", { unique: true });
-}
+};
 
 function isModel(db, modelName) {
    return db.objectStoreNames.contains(modelName);
-}
-/** 
- * @typedef {Object} SchemaMerlin
- * @property {(Function|Array)} type 
- * @property {(Boolean|Function)} required - 
- * @property {Boolean} unique - 
- * @property {(Array|Number)} maxLength - 
- * @property {(Array|Number)} minLength - 
- * @property {(Array|Number)} min - 
- * @property {(Array|Number)} max - 
- * @property {(Array|Boolean)} validateEmail - 
- * @property {Object} enum - 
- * @property {Array} enum.values - 
- * @property {String} enum.message - 
- * @property {Object} encrypt -  
- * @property {("SHA-256"|"SHA-384"|"SHA-512")} encrypt.hash -  
- * @property {Number} encrypt.salt -   
- * @property {Number} encrypt.iterations -    
- * @property {("medium"|"strict"|"high"|"strong"|"stronger"|"galaxy")} encrypt.strength -  
- * @property {Object} validate - 
- * @property {Function} validate.validator - 
- * @property {(String|Function)} validate.message - 
- * @typedef {Object.<string, SchemaMerlin>} SchemaMerlin_ 
- * @param {SchemaMerlin_} schema -  
- * @param {String} modelName -  
+};
+/**  
+ * Creates a new model for your collection;
+ * @param {SchemaMerlin} schema - Define the structure of documents within a collection;
+ * @param {String} modelName - Define an model name
+ * @returns A new model
  */
 MerlinDB.prototype.model = function (modelName, schema) {
    if (!schema) {
@@ -88,6 +91,11 @@ MerlinDB.prototype.model = function (modelName, schema) {
    return new Query(schema, this, modelName);
 };
 
+/**
+ * Retrieves the current version of your database
+ * @param {String} dbName - Your database Name;
+ * @returns Database version (Number)
+ */
 MerlinDB.prototype.version = function (dbName) {
    return new Promise(resolve => {
       var db = this.dbApi.open(dbName || this.dbName);
@@ -112,7 +120,11 @@ MerlinDB.prototype.dbOpen = function () {
    })
 };
 
-//Connect
+/**
+ * Connect to your database;
+ * @param {String} dbName - Define a Database name, If it does not exist, one will be automatically created with the name;
+ * @returns Database connection
+ */
 MerlinDB.prototype.connect = function (dbName) {
    var t = this;
    /**@protected */
@@ -132,7 +144,11 @@ MerlinDB.prototype.connect = function (dbName) {
    })
 };
 
-//Drop Database
+/**
+ * Delete a database
+ * @param {String} dbName - Database name to drop
+ * @returns Success if deleted
+ */
 MerlinDB.prototype.dropDatabase = function (dbName) {
    var t = this;
    return new Promise(async (resolve, reject) => {
@@ -167,14 +183,15 @@ MerlinDB.prototype.dropDatabase = function (dbName) {
          });
       };
    });
-}
+};
 
 /**
+ * Get the current database size.
  * @typedef {Object} DatabaseSize
- * @property {("kB"|"MB"|"GB")} format - 
- * @property {Boolean} string - 
- * @param {DatabaseSize} options 
- * @returns 
+ * @property {("kB"|"MB"|"GB")} format -(Optional) Format to returns. By default, MerlinDB returns all sizes in bytes.
+ * @property {Boolean} string - (Optional) If you want to format the value to a string, set true;
+ * @param {DatabaseSize} options - Setting options; 
+ * @returns Current size of the database in bytes
  */
 MerlinDB.prototype.databaseSize = function (options) {
    options = options || {};
@@ -226,15 +243,16 @@ MerlinDB.prototype.databaseSize = function (options) {
          });
       }
    });
-}
+};
 
 /**
+ * Get memory information from the database.
  * @typedef {Object} EstimatedSize
- * @property {("kB"|"MB"|"GB")} format - 
- * @property {Boolean} string - 
- * @property {("en-US"|"pt-BR")} locale - or you country locale lang
- * @param {EstimatedSize} options 
- * @returns 
+ * @property {("kB"|"MB"|"GB")} format -(Optional) Format to returns. By default, MerlinDB returns all sizes in bytes.
+ * @property {Boolean} string - (Optional) If you want to format the value to a string, set true;
+ * @property {("en-US"|"pt-BR")} locale - Set the locale to format the string. ("en-US" ...);
+ * @param {EstimatedSize} options - Setting options; 
+ * @returns returns the total size, the used size and the available size of the database in bytes or formatted.
  */
 MerlinDB.prototype.getMemInfo = function (options) {
    options = options || {};
@@ -274,15 +292,15 @@ MerlinDB.prototype.getMemInfo = function (options) {
          });
 
       } else {
-         reject('There\'s no StorageManager API.');
+         reject("There's no StorageManager API.");
       }
    });
-}
+};
 
 /**
- * 
- * @param {Array} exceptions - ['dbs-to-not-drop']
- * @returns 
+ * Deletes all databases.
+ * @param {Array} exceptions - ['dbs-to-not-drop'] 
+ * @returns Removes all existing databases in MerlinDB.
  */
 MerlinDB.prototype.dropAll = function (exceptions) {
    exceptions = exceptions || [];
@@ -320,8 +338,17 @@ MerlinDB.prototype.dropAll = function (exceptions) {
       });
 
    });
-}
+};
 
+/**
+ * Get all information from MerlinDB.
+ * @typedef {Object} info_
+ * @property {("kB"|"MB"|"GB")} format -(Optional) Format to returns. By default, MerlinDB returns all sizes in bytes.
+ * @property {Boolean} string - (Optional) If you want to format the value to a string, set true;
+ * @property {("en-US"|"pt-BR")} locale - Set the locale to format the string. ("en-US" ...);
+ * @param {info_} options - Setting options;  
+ * @returns Information such as total estimated memory used (estimatedSize), all databases and all existing models.
+ */
 MerlinDB.prototype.info = function (options) {
    options = options || {};
 
@@ -335,9 +362,14 @@ MerlinDB.prototype.info = function (options) {
       }
       resolve(info);
    });
-}
+};
 
-//Delete Model
+/**  
+ * Creates a new model for future operations in MerlinDB.
+ * @param {SchemaMerlin} schema - Define the structure of documents within a collection;
+ * @param {String} modelName - Define an model name
+ * @returns A new model created
+ */
 MerlinDB.prototype.createModel = function (modelName, schema) {
 
    return new Promise(async (resolve, reject) => {
@@ -366,7 +398,11 @@ MerlinDB.prototype.createModel = function (modelName, schema) {
    });
 };
 
-//Delete Model
+/**  
+ * Delete an existing model in the database.
+ * @param {String} modelName - Model name to delete
+ * @returns Success if deleted.
+ */
 MerlinDB.prototype.deleteModel = function (modelName) {
    var t = this;
 
@@ -407,16 +443,14 @@ MerlinDB.prototype.deleteModel = function (modelName) {
    })
 };
 
-//Rename Model
-/**
- * @typedef {Object} OptionsRenameModel
- * @property {Array} unique - 
- * @param {String} modelName - 
- * @param {String} rename - 
- * @param {OptionsRenameModel} schema 
- * @returns 
+/** 
+ * Rename a model that already exists in the database.
+ * @param {SchemaMerlin} schema - The schema of your current model;
+ * @param {String} actualName - Current name of the model;
+ * @param {String} rename - Name you want to rename; 
+ * @returns renamed model;
  */
-MerlinDB.prototype.renameModel = function (modelName, rename, schema) {
+MerlinDB.prototype.renameModel = function (actualName, rename, schema) {
 
    if (typeof schema !== 'object' || Array.isArray(schema) || !schema) {
       throw new MerlinError(`Please define your 'actual schema' in renameModel method!`);
@@ -424,10 +458,10 @@ MerlinDB.prototype.renameModel = function (modelName, rename, schema) {
 
    return new Promise(async (resolve, reject) => {
 
-      var model = this.model(modelName, schema);
+      var model = this.model(actualName, schema);
 
       try {
-         await this.getModel(modelName);
+         await this.getModel(actualName);
       } catch (e) {
          return reject(e);
       }
@@ -444,18 +478,21 @@ MerlinDB.prototype.renameModel = function (modelName, rename, schema) {
       var newModel = this.model(rename, schema);
       newModel = await newModel.insert(data);
 
-      this.deleteModel(modelName);
+      this.deleteModel(actualName);
       resolve({
-         oldModel: modelName,
+         oldModel: actualName,
          newModel: rename,
          renamed: true,
          data: newModel.data,
          status: 'Successful'
       })
    });
-}
+};
 
-//Get Models
+/**
+ * Getting all models from the database;
+ * @returns All models in database;
+ */
 MerlinDB.prototype.getModels = function () {
    var t = this;
    return new Promise(async (resolve, reject) => {
@@ -504,9 +541,13 @@ MerlinDB.prototype.getModels = function () {
          result.close();
       };
    });
-}
+};
 
-//Get Model
+/**
+ * Get a specific database model.
+ * @param {String} modelName - Model name to get;
+ * @returns model if exists;
+ */
 MerlinDB.prototype.getModel = function (modelName) {
    var t = this;
 
@@ -549,7 +590,7 @@ MerlinDB.prototype.getModel = function (modelName) {
          result.close();
       };
    });
-}
+};
 
 MerlinDB.prototype.Schema = Schema;
 export default MerlinDB;
