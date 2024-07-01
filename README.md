@@ -51,7 +51,7 @@ Initialize your new model:
 const Users = merlin.model("Users", usersSchema);
 ```
 
-CRUD (Insert, Update and Remove):
+CRUD (Insert, Get, Update and Remove):
 
 ```javascript
 //Insert
