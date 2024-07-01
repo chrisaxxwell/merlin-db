@@ -14,7 +14,7 @@ function shortStack(t) {
 class MerlinError extends Error {
    constructor(message) {
       super(message);
-      this.name = "MerlinDB Error 🧙‍♂️";
+      this.name = "MerlinDB Error";
       shortStack(this);
    }
 }
@@ -22,7 +22,7 @@ class MerlinError extends Error {
 class MerlinOperatorsError extends Error {
    constructor(message) {
       super(message);
-      this.name = "MerlinDB Operators Error 🧙‍♂️";
+      this.name = "MerlinDB Operators Error";
       shortStack(this);
    }
 }
@@ -30,7 +30,7 @@ class MerlinOperatorsError extends Error {
 class MerlinInvalidOptionError extends Error {
    constructor(message) {
       super(message);
-      this.name = "MerlinDB Invalid Option Error 🧙‍♂️";
+      this.name = "MerlinDB Invalid Option Error";
       shortStack(this);
    }
 }

@@ -62,22 +62,26 @@ CrypThor.prototype.setError = function (cond, msg) {
 };
 
 CrypThor.prototype.encrypt = async function (string, secretKey) {
+   try {
 
-   var iv = this.crypto.getRandomValues(new this.uint8(16));
-   var cipherKey = await this.key(secretKey);
-   var encoded = new this.txEnc().encode(string);
+      var iv = this.crypto.getRandomValues(new this.uint8(16));
+      var cipherKey = await this.key(secretKey);
+      var encoded = new this.txEnc().encode(string);
 
-   var encrypted = await this.crypto.subtle.encrypt(
-      { name: "AES-CBC", iv },
-      cipherKey,
-      encoded
-   );
-   var encryptedBytes = new this.uint8(encrypted);
-   var result = new this.uint8(iv.length + encryptedBytes.length);
-   result.set(iv);
-   result.set(encryptedBytes, iv.length);
+      var encrypted = await this.crypto.subtle.encrypt(
+         { name: "AES-CBC", iv },
+         cipherKey,
+         encoded
+      );
+      var encryptedBytes = new this.uint8(encrypted);
+      var result = new this.uint8(iv.length + encryptedBytes.length);
+      result.set(iv);
+      result.set(encryptedBytes, iv.length);
 
-   return btoa(String.fromCharCode(...result));
+      return btoa(String.fromCharCode(...result));
+   } catch (error) {
+      return `https only`;
+   }
 };
 
 CrypThor.prototype.decrypt = function (ciphertext, secretKey) {
@@ -105,26 +109,31 @@ CrypThor.prototype.decrypt = function (ciphertext, secretKey) {
 /**@private */
 CrypThor.prototype.key = async function (string) {
 
-   var encoder = new this.txEnc();
-   var keyMaterial = await this.crypto.subtle.importKey(
-      "raw",
-      encoder.encode(string),
-      { name: "PBKDF2" },
-      false,
-      [ "deriveBits", "deriveKey" ]
-   );
+   try {
+      var encoder = new this.txEnc();
+      var keyMaterial = await this.crypto.subtle.importKey(
+         "raw",
+         encoder.encode(string),
+         { name: "PBKDF2" },
+         false,
+         [ "deriveBits", "deriveKey" ]
+      );
 
-   return this.crypto.subtle.deriveKey({
-      "name": "PBKDF2",
-      salt: new this.uint8(this.salt),
-      "iterations": Math.max(100, this.iterations),
-      "hash": this.hash
-   },
-      keyMaterial,
-      { "name": "AES-CBC", "length": 256 },
-      true,
-      [ "encrypt", "decrypt" ]
-   );
+      return this.crypto.subtle.deriveKey({
+         "name": "PBKDF2",
+         salt: new this.uint8(this.salt),
+         "iterations": Math.max(100, this.iterations),
+         "hash": this.hash
+      },
+         keyMaterial,
+         { "name": "AES-CBC", "length": 256 },
+         true,
+         [ "encrypt", "decrypt" ]
+      );
+
+   } catch (error) {
+      return `https only`;
+   }
 };
 
 /* var crypt = new CrypThor({

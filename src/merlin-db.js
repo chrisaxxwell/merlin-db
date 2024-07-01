@@ -593,7 +593,7 @@ MerlinDB.prototype.getModel = function (modelName) {
 };
 
 MerlinDB.prototype.Schema = Schema;
-export default MerlinDB;
+
 export {
    Schema,
    ObjectId,

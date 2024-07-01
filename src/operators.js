@@ -92,7 +92,7 @@ Operators.prototype.$nin = function () {
    this.errorNe(arguments[ 0 ], "$nin", arguments[ 2 ]);
 
    if (typeof arguments[ 0 ] && !Array.isArray(arguments[ 0 ])) {
-      throw new Error("🧙‍♂️ Ivaliasd as '$ne'")
+      throw new Error("Ivaliasd as '$ne'")
    }
 
    if (typeof arguments[ 0 ] && Array.isArray(arguments[ 0 ])) {
@@ -192,7 +192,7 @@ Operators.prototype.regexTransformer = function (regex) {
 
       return new RegExp(regex[ 0 ], regex[ 1 ] || "");
    } else {
-      throw new Error(`🧙‍♂️ Invalid regex ${regex}`)
+      throw new Error(`Invalid regex ${regex}`)
    }
 }
 /**@private */

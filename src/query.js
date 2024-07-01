@@ -1114,7 +1114,7 @@ Query.prototype.findOneAndUpdate = function (filter, update, options) {
 /**@private */
 Query.prototype.unavailable = function (type) {
    return new Promise((resolve, reject) => {
-      reject(`🧙‍♂️ Sorry, the '${type}' method will be available in the next versions!`)
+      reject(`Sorry, the '${type}' method will be available in the next versions!`)
    });
 };
 Query.prototype.aggregate = function () {
